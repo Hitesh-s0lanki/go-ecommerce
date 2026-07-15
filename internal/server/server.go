@@ -3,6 +3,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/rs/zerolog"
 	"gorm.io/gorm"
 
+	"github.com/Hitesh-s0lanki/go-ecommerce/internal/auth"
 	"github.com/Hitesh-s0lanki/go-ecommerce/internal/config"
 	"github.com/Hitesh-s0lanki/go-ecommerce/internal/utils"
 )
@@ -22,11 +24,20 @@ type Server struct {
 	config *config.Config
 	db     *gorm.DB
 	logger zerolog.Logger
+	tokens *auth.TokenManager
 }
 
 // New builds a Server.
-func New(cfg *config.Config, db *gorm.DB, logger *zerolog.Logger) *Server {
-	return &Server{config: cfg, db: db, logger: *logger}
+//
+// It returns an error because the token manager validates the JWT secret: a
+// weak secret must stop startup rather than surface later as a forged token.
+func New(cfg *config.Config, db *gorm.DB, logger *zerolog.Logger) (*Server, error) {
+	tokens, err := auth.NewTokenManager(&cfg.JWT)
+	if err != nil {
+		return nil, fmt.Errorf("build token manager: %w", err)
+	}
+
+	return &Server{config: cfg, db: db, logger: *logger, tokens: tokens}, nil
 }
 
 // Routes builds the gin engine.

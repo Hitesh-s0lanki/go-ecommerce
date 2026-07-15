@@ -69,7 +69,10 @@ func run() error {
 
 	logStartupWarnings(&log, cfg)
 
-	srv := server.New(cfg, db, &log)
+	srv, err := server.New(cfg, db, &log)
+	if err != nil {
+		return fmt.Errorf("build server: %w", err)
+	}
 
 	httpServer := &http.Server{
 		Addr:              net.JoinHostPort("", cfg.Server.Port),
@@ -116,7 +119,7 @@ func run() error {
 // logStartupWarnings surfaces insecure defaults that are tolerable in
 // development but must not reach production unnoticed.
 func logStartupWarnings(log *zerolog.Logger, cfg *config.Config) {
-	if !cfg.IsProduction() && cfg.JWT.Secret == "change_me_in_production" {
+	if !cfg.IsProduction() && cfg.JWT.UsesDefaultSecret() {
 		log.Warn().Msg("JWT_SECRET is the default value; set a real secret before deploying")
 	}
 
