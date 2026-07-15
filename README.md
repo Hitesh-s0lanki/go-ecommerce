@@ -22,7 +22,46 @@ cmd/api/            entrypoint: loads config, connects, waits for signals
 internal/config/    environment loading and validation
 internal/database/  Postgres connection, pooling, health check
 internal/logger/    zerolog setup (console in dev, JSON in release)
+internal/models/    GORM models: users, products, carts, orders
 ```
+
+## Models
+
+Nine models: `User`, `RefreshToken`, `Category`, `Product`, `ProductImage`,
+`Cart`, `CartItem`, `Order`, `OrderItem`. `models.All()` lists them in dependency
+order, and is the single source of truth for migrations and tests.
+
+Two conventions worth knowing:
+
+**Money is stored as integer cents** (`PriceCents`, `TotalAmountCents`,
+`UnitPriceCents`), never as a float — binary floating point cannot represent
+decimal cents exactly, so summing line items drifts. `1999` means $19.99.
+
+**Unique indexes are partial** (`WHERE deleted_at IS NULL`). All models soft
+delete, and a plain unique index would let a deleted row reserve its email or SKU
+forever.
+
+`OrderItem` snapshots the price at purchase; `CartItem` deliberately does not, so
+carts always price from the current product.
+
+## Migrations
+
+Versioned SQL under [`db/migrations/`](db/migrations), applied with
+[golang-migrate](https://github.com/golang-migrate/migrate). The models never
+migrate themselves — `AutoMigrate` is used only to build throwaway schemas in
+tests, so the SQL files are the single source of truth for the real database.
+
+```bash
+make docker-up                       # Postgres must be running
+make migrate-up                      # apply
+make migrate-status                  # current version
+make migrate-down                    # roll back one
+make migrate-create name=add_widgets # scaffold a new pair
+```
+
+The SQL is kept equivalent to the models: applying the migrations and running
+`AutoMigrate` produce a byte-identical schema. If you change a model, change the
+migrations too — nothing enforces this automatically.
 
 ## Requirements
 
@@ -52,6 +91,7 @@ make run
 | `make run` / `make dev` | Run the API server |
 | `make build` | Compile to `bin/api` |
 | `make test` | Run tests with the race detector |
+| `make test-integration` | Also run tests needing Postgres (`make docker-up` first) |
 | `make lint` / `make lint-fix` | Lint, optionally applying autofixes |
 | `make fmt` / `make fmt-check` | Apply formatters, or just show the diff |
 | `make ci` | Run tidy, vet, lint and test together |
