@@ -2,9 +2,8 @@
 
 An e-commerce backend written in Go.
 
-> **Status:** early scaffold. Config, database and logging are wired up; the HTTP
-> server itself is not implemented yet — `cmd/api` connects to Postgres, logs, and
-> waits for a shutdown signal.
+> **Status:** early scaffold. Config, database, logging and the HTTP server are
+> wired up, with health endpoints only — no business routes yet.
 
 ## Stack
 
@@ -18,12 +17,38 @@ An e-commerce backend written in Go.
 ## Layout
 
 ```
-cmd/api/            entrypoint: loads config, connects, waits for signals
+cmd/api/            entrypoint: config, database, HTTP server, graceful shutdown
 internal/config/    environment loading and validation
 internal/database/  Postgres connection, pooling, health check
 internal/logger/    zerolog setup (console in dev, JSON in release)
 internal/models/    GORM models: users, products, carts, orders
+internal/server/    gin engine, middleware, health endpoints
+internal/utils/     HTTP response envelope
 ```
+
+## API
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /health` | Liveness. Never touches the database, so a database blip cannot restart-loop the process |
+| `GET /health/ready` | Readiness. Pings the database; 503 when it is unreachable |
+
+Every response uses one envelope:
+
+```json
+{ "success": true, "message": "ok", "data": { "status": "ok" } }
+```
+
+Error detail is only returned for 4xx (what the caller did wrong). A 5xx returns
+a generic message and logs the detail, since internal errors can carry schema
+details, file paths, or driver internals.
+
+Every request carries an `X-Request-ID`, reusing an inbound one if present so
+correlation ids survive across services, and it appears on the request's log line.
+
+CORS comes from `ALLOWED_ORIGINS` (comma-separated). `*` allows any origin and
+never sends credentials; explicit origins are echoed back with `Vary: Origin` and
+do allow credentials.
 
 ## Models
 
