@@ -2,8 +2,27 @@
 
 An e-commerce backend written in Go.
 
-> **Status:** early scaffold. Tooling and CI are set up; `cmd/api` is a placeholder
-> entrypoint that only logs a startup line.
+> **Status:** early scaffold. Config, database and logging are wired up; the HTTP
+> server itself is not implemented yet — `cmd/api` connects to Postgres, logs, and
+> waits for a shutdown signal.
+
+## Stack
+
+| Concern | Choice |
+| --- | --- |
+| HTTP | [gin](https://github.com/gin-gonic/gin) v1.12.0 |
+| ORM | [GORM](https://gorm.io/) v1.31.2 + Postgres driver v1.6.0 |
+| Logging | [zerolog](https://github.com/rs/zerolog) v1.35.1 |
+| Config | [godotenv](https://github.com/joho/godotenv) v1.5.1 + environment |
+
+## Layout
+
+```
+cmd/api/            entrypoint: loads config, connects, waits for signals
+internal/config/    environment loading and validation
+internal/database/  Postgres connection, pooling, health check
+internal/logger/    zerolog setup (console in dev, JSON in release)
+```
 
 ## Requirements
 
@@ -49,7 +68,13 @@ make run
 - **LocalStack** (S3, SQS) on `localhost:4566`
 
 Configuration comes from `.env` (copy from `.env.example`). The Makefile reads the
-same file, so `make migrate-*` targets the database you configured there.
+same file, so `make migrate-*` targets the database you configured there. Real
+environment variables take precedence over `.env`.
+
+`GIN_MODE` drives more than routing: `release` switches logs to JSON, quiets GORM
+statement logging, and makes a default `JWT_SECRET` a startup error rather than a
+warning. Config is validated at startup, so a malformed duration or size fails
+immediately instead of silently becoming zero.
 
 > **Note on the Postgres volume:** Postgres 18 stores data in
 > `/var/lib/postgresql/18/docker` and expects the volume at `/var/lib/postgresql`.
