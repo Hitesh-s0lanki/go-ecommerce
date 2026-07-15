@@ -15,6 +15,7 @@ import (
 
 	"github.com/Hitesh-s0lanki/go-ecommerce/internal/auth"
 	"github.com/Hitesh-s0lanki/go-ecommerce/internal/dto"
+	"github.com/Hitesh-s0lanki/go-ecommerce/internal/events"
 	"github.com/Hitesh-s0lanki/go-ecommerce/internal/models"
 )
 
@@ -40,11 +41,57 @@ type AuthService struct {
 	tokens     *auth.TokenManager
 	refreshTTL time.Duration
 	logger     zerolog.Logger
+	events     events.Publisher
 }
 
 // NewAuthService builds an AuthService.
-func NewAuthService(db *gorm.DB, tokens *auth.TokenManager, refreshTTL time.Duration, logger *zerolog.Logger) *AuthService {
-	return &AuthService{db: db, tokens: tokens, refreshTTL: refreshTTL, logger: *logger}
+//
+// publisher may be events.Noop, which is what runs when events are switched
+// off, so this never has to check whether one is configured.
+func NewAuthService(
+	db *gorm.DB,
+	tokens *auth.TokenManager,
+	refreshTTL time.Duration,
+	logger *zerolog.Logger,
+	publisher events.Publisher,
+) *AuthService {
+	return &AuthService{
+		db:         db,
+		tokens:     tokens,
+		refreshTTL: refreshTTL,
+		logger:     *logger,
+		events:     publisher,
+	}
+}
+
+// publishUserEvent announces something that happened to a user.
+//
+// Deliberately best-effort. The reference returns the publish error to the
+// caller, so an SQS outage means nobody can log in or register — an outage of
+// the thing that sends the welcome email takes down the front door. An event
+// is a side effect of the request, not the point of it.
+//
+// The cost is that an event can be dropped: the queue is down, and the welcome
+// email never sends. That is the right trade for these two, and if an event
+// ever must not be lost — payment taken, order placed — the answer is to write
+// it to the database in the same transaction and have a relay publish it, not
+// to fail the request.
+func (s *AuthService) publishUserEvent(ctx context.Context, eventType string, user *models.User) {
+	payload := events.UserEvent{
+		UserID:    user.ID,
+		Email:     user.Email,
+		FirstName: user.FirstName,
+		LastName:  user.LastName,
+		Role:      string(user.Role),
+	}
+
+	if err := s.events.Publish(ctx, eventType, payload, nil); err != nil {
+		s.logger.Error().
+			Err(err).
+			Str("event", eventType).
+			Uint("user_id", user.ID).
+			Msg("failed to publish event")
+	}
 }
 
 // Register creates a user, their cart, and an initial token pair.
@@ -97,6 +144,11 @@ func (s *AuthService) Register(ctx context.Context, req *dto.RegisterRequest) (*
 		return nil, err
 	}
 
+	// After the commit, never inside it: an event published from inside the
+	// transaction announces a user who may not exist a moment later, and
+	// consumers are fast enough to act on one before the rollback lands.
+	s.publishUserEvent(ctx, events.TypeUserRegistered, &user)
+
 	return resp, nil
 }
 
@@ -144,10 +196,17 @@ func (s *AuthService) Login(ctx context.Context, req *dto.LoginRequest) (*dto.Au
 		return nil, err
 	}
 
+	s.publishUserEvent(ctx, events.TypeUserLoggedIn, &user)
+
 	return resp, nil
 }
 
 // Refresh rotates a refresh token for a new pair.
+//
+// It publishes nothing. The reference emits its login event from the helper
+// all three of these share, so registering fires "logged in" as well, and so
+// does every token rotation — which for a client refreshing on a timer is an
+// event per interval, and a welcome email per interval for anything listening.
 //
 // Rotation means the presented token is revoked as the new one is issued, so a
 // stolen token is usable at most once. Replay of an already-rotated token is

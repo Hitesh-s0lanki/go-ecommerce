@@ -17,6 +17,7 @@ import (
 	_ "github.com/Hitesh-s0lanki/go-ecommerce/docs"
 	"github.com/Hitesh-s0lanki/go-ecommerce/internal/auth"
 	"github.com/Hitesh-s0lanki/go-ecommerce/internal/config"
+	"github.com/Hitesh-s0lanki/go-ecommerce/internal/events"
 	"github.com/Hitesh-s0lanki/go-ecommerce/internal/services"
 	"github.com/Hitesh-s0lanki/go-ecommerce/internal/storage"
 	"github.com/Hitesh-s0lanki/go-ecommerce/internal/utils"
@@ -38,6 +39,7 @@ type Server struct {
 	uploads    *services.UploadService
 	carts      *services.CartService
 	orders     *services.OrderService
+	events     events.Publisher
 }
 
 // New builds a Server.
@@ -48,6 +50,20 @@ func New(cfg *config.Config, db *gorm.DB, logger *zerolog.Logger) (*Server, erro
 	tokens, err := auth.NewTokenManager(&cfg.JWT)
 	if err != nil {
 		return nil, fmt.Errorf("build token manager: %w", err)
+	}
+
+	// Built here so a misconfigured queue stops the process rather than
+	// surfacing as events silently going nowhere.
+	publisher, err := events.New(context.Background(), &events.Config{
+		Enabled:     cfg.Events.Enabled,
+		QueueName:   cfg.Events.QueueName,
+		Region:      cfg.AWS.Region,
+		AccessKeyID: cfg.AWS.AccessKeyID,
+		SecretKey:   cfg.AWS.SecretAccessKey,
+		Endpoint:    cfg.AWS.SQSEndpoint,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("build event publisher: %w", err)
 	}
 
 	// Built here so a misconfigured bucket or an unwritable upload directory
@@ -73,14 +89,27 @@ func New(cfg *config.Config, db *gorm.DB, logger *zerolog.Logger) (*Server, erro
 		tokens: tokens,
 		// Built once, not per request as in the reference: they hold no
 		// per-request state, so rebuilding them on every call is pure waste.
-		auth:       services.NewAuthService(db, tokens, cfg.JWT.RefreshTokenExpires, logger),
+		auth:       services.NewAuthService(db, tokens, cfg.JWT.RefreshTokenExpires, logger, publisher),
 		users:      services.NewUserService(db),
 		categories: services.NewCategoryService(db),
 		products:   services.NewProductService(db),
 		uploads:    services.NewUploadService(provider, cfg.Upload.MaxFileSize),
 		carts:      services.NewCartService(db),
 		orders:     services.NewOrderService(db),
+		events:     publisher,
 	}, nil
+}
+
+// Close releases what the Server owns.
+//
+// The reference never closes its publisher, so whatever it has buffered goes
+// with the process.
+func (s *Server) Close() error {
+	if err := s.events.Close(); err != nil {
+		return fmt.Errorf("close event publisher: %w", err)
+	}
+
+	return nil
 }
 
 // Routes builds the gin engine.

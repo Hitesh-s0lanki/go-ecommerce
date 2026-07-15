@@ -83,6 +83,12 @@ func run() error {
 		return fmt.Errorf("build server: %w", err)
 	}
 
+	defer func() {
+		if closeErr := srv.Close(); closeErr != nil {
+			log.Error().Err(closeErr).Msg("failed to close server")
+		}
+	}()
+
 	httpServer := &http.Server{
 		Addr:              net.JoinHostPort("", cfg.Server.Port),
 		Handler:           srv.Routes(),

@@ -39,6 +39,9 @@ func testConfig(origins []string) *config.Config {
 			ExpiresIn:           time.Hour,
 			RefreshTokenExpires: 24 * time.Hour,
 		},
+		// Off: these tests are about HTTP, and a publisher would have them
+		// reaching for a queue that is not there.
+		Events: config.EventsConfig{Enabled: false},
 		Upload: config.UploadConfig{
 			Provider:    config.UploadProviderLocal,
 			Path:        testUploadsDir,

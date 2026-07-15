@@ -236,6 +236,27 @@ Disable entirely with `make unhooks`.
 - **CDN** (nginx) on `localhost:8081`, standing in for the CDN that would front
   uploaded files in production
 
+### Domain events
+
+Registering and logging in publish an event to SQS (`user.registered`,
+`user.logged_in`), so that work which is not the caller's concern — a welcome
+email, an analytics record — can happen somewhere else. `EVENTS_ENABLED=false`
+discards them and the API runs with no queue.
+
+Publishing is best-effort: a queue outage is logged, never a failed login. An
+event is a side effect of the request, not the point of it. The cost is that an
+event can be dropped, which is the right trade for these two. If one ever must
+not be lost — payment taken, order placed — the answer is to write it to the
+database in the same transaction and have a relay publish it, not to fail the
+request.
+
+Refreshing a token publishes nothing: that is the session continuing, not a
+person logging in.
+
+The queue must already exist; the LocalStack init script creates it. The
+publisher will not create one, so a typo in `AWS_EVENT_QUEUE_NAME` fails loudly
+instead of filling a queue nobody reads.
+
 ### Uploaded files
 
 `UPLOAD_PROVIDER` decides where product images are stored: `local` writes to

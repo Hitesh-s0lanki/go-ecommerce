@@ -25,6 +25,16 @@ const testSecret = "test-secret-that-is-at-least-32-bytes-long"
 func newAuthService(t *testing.T) (*services.AuthService, *gorm.DB) {
 	t.Helper()
 
+	svc, db, _ := newAuthServiceWithEvents(t)
+
+	return svc, db
+}
+
+// newAuthServiceWithEvents also hands back the publisher, so a test can assert
+// on what was announced.
+func newAuthServiceWithEvents(t *testing.T) (*services.AuthService, *gorm.DB, *fakePublisher) {
+	t.Helper()
+
 	db := newSchemaDB(t)
 
 	tokens, err := auth.NewTokenManager(&config.JWTConfig{
@@ -37,8 +47,9 @@ func newAuthService(t *testing.T) (*services.AuthService, *gorm.DB) {
 	}
 
 	log := zerolog.New(io.Discard)
+	publisher := &fakePublisher{}
 
-	return services.NewAuthService(db, tokens, 24*time.Hour, &log), db
+	return services.NewAuthService(db, tokens, 24*time.Hour, &log, publisher), db, publisher
 }
 
 func registerReq(email string) *dto.RegisterRequest {
