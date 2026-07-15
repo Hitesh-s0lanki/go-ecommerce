@@ -1,0 +1,26 @@
+name: lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  golangci-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: false # the linter action manages its own cache
+
+      # Reports both lint and formatting issues, since the formatters
+      # configured in .golangci.yml are checked by `run` as well.
+      - uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.12.2
