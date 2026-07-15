@@ -26,12 +26,14 @@ const readyTimeout = 2 * time.Second
 
 // Server holds the dependencies shared by the HTTP handlers.
 type Server struct {
-	config *config.Config
-	db     *gorm.DB
-	logger zerolog.Logger
-	tokens *auth.TokenManager
-	auth   *services.AuthService
-	users  *services.UserService
+	config     *config.Config
+	db         *gorm.DB
+	logger     zerolog.Logger
+	tokens     *auth.TokenManager
+	auth       *services.AuthService
+	users      *services.UserService
+	categories *services.CategoryService
+	products   *services.ProductService
 }
 
 // New builds a Server.
@@ -51,8 +53,10 @@ func New(cfg *config.Config, db *gorm.DB, logger *zerolog.Logger) (*Server, erro
 		tokens: tokens,
 		// Built once, not per request as in the reference: they hold no
 		// per-request state, so rebuilding them on every call is pure waste.
-		auth:  services.NewAuthService(db, tokens, cfg.JWT.RefreshTokenExpires, logger),
-		users: services.NewUserService(db),
+		auth:       services.NewAuthService(db, tokens, cfg.JWT.RefreshTokenExpires, logger),
+		users:      services.NewUserService(db),
+		categories: services.NewCategoryService(db),
+		products:   services.NewProductService(db),
 	}, nil
 }
 
@@ -116,6 +120,13 @@ func (s *Server) Routes() *gin.Engine {
 	authRoutes.POST("/logout", s.logout)
 	authRoutes.GET("/me", s.Authenticate(), s.me)
 
+	// The catalogue is readable without an account: a shop whose products
+	// only load once you log in has nothing to sell to a new visitor. These
+	// read paths return active rows only, so nothing withdrawn is exposed.
+	api.GET("/categories", s.getCategories)
+	api.GET("/products", s.getProducts)
+	api.GET("/products/:id", s.getProduct)
+
 	// Everything below requires a valid access token.
 	protected := api.Group("")
 	protected.Use(s.Authenticate())
@@ -123,6 +134,25 @@ func (s *Server) Routes() *gin.Engine {
 	users := protected.Group("/users")
 	users.GET("/profile", s.getProfile)
 	users.PUT("/profile", s.updateProfile)
+
+	// Writing the catalogue is an admin power. RequireAdmin sits on the group
+	// rather than on each route, so a later endpoint added here cannot ship
+	// unguarded by forgetting one middleware argument.
+	admin := protected.Group("")
+	admin.Use(s.RequireAdmin())
+
+	// "" rather than "/": with "/" the route is /api/v1/categories/, and a
+	// client POSTing to /api/v1/categories gets a redirect instead of a
+	// created row.
+	adminCategories := admin.Group("/categories")
+	adminCategories.POST("", s.createCategory)
+	adminCategories.PUT("/:id", s.updateCategory)
+	adminCategories.DELETE("/:id", s.deleteCategory)
+
+	adminProducts := admin.Group("/products")
+	adminProducts.POST("", s.createProduct)
+	adminProducts.PUT("/:id", s.updateProduct)
+	adminProducts.DELETE("/:id", s.deleteProduct)
 
 	return router
 }

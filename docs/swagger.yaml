@@ -25,6 +25,76 @@ definitions:
       user:
         $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.UserResponse'
     type: object
+  github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.CategoryEnvelope:
+    properties:
+      data:
+        $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.CategoryResponse'
+      message:
+        example: ok
+        type: string
+      success:
+        example: true
+        type: boolean
+    type: object
+  github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.CategoryListEnvelope:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.CategoryResponse'
+        type: array
+      message:
+        example: ok
+        type: string
+      success:
+        example: true
+        type: boolean
+    type: object
+  github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.CategoryResponse:
+    properties:
+      description:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      name:
+        type: string
+    type: object
+  github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.CreateCategoryRequest:
+    properties:
+      description:
+        maxLength: 2000
+        type: string
+      name:
+        maxLength: 255
+        type: string
+    required:
+    - name
+    type: object
+  github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.CreateProductRequest:
+    properties:
+      category_id:
+        type: integer
+      description:
+        maxLength: 5000
+        type: string
+      name:
+        maxLength: 255
+        type: string
+      price_cents:
+        type: integer
+      sku:
+        maxLength: 100
+        type: string
+      stock:
+        minimum: 0
+        type: integer
+    required:
+    - category_id
+    - name
+    - price_cents
+    - sku
+    type: object
   github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope:
     properties:
       error:
@@ -56,6 +126,83 @@ definitions:
         example: true
         type: boolean
     type: object
+  github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.PageMeta:
+    properties:
+      limit:
+        type: integer
+      page:
+        type: integer
+      total:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+  github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ProductEnvelope:
+    properties:
+      data:
+        $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ProductResponse'
+      message:
+        example: ok
+        type: string
+      success:
+        example: true
+        type: boolean
+    type: object
+  github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ProductImageResponse:
+    properties:
+      alt_text:
+        type: string
+      id:
+        type: integer
+      is_primary:
+        type: boolean
+      url:
+        type: string
+    type: object
+  github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ProductListEnvelope:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ProductResponse'
+        type: array
+      message:
+        example: ok
+        type: string
+      meta:
+        $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.PageMeta'
+      success:
+        example: true
+        type: boolean
+    type: object
+  github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ProductResponse:
+    properties:
+      category:
+        allOf:
+        - $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.CategoryResponse'
+        description: |-
+          Pointer and omitempty: an unloaded relation is absent rather than an
+          object full of zero values that a client cannot tell from real data.
+      category_id:
+        type: integer
+      description:
+        type: string
+      id:
+        type: integer
+      images:
+        items:
+          $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ProductImageResponse'
+        type: array
+      is_active:
+        type: boolean
+      name:
+        type: string
+      price_cents:
+        type: integer
+      sku:
+        type: string
+      stock:
+        type: integer
+    type: object
   github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.RefreshTokenRequest:
     properties:
       refresh_token:
@@ -84,6 +231,44 @@ definitions:
     - first_name
     - last_name
     - password
+    type: object
+  github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.UpdateCategoryRequest:
+    properties:
+      description:
+        maxLength: 2000
+        type: string
+      is_active:
+        description: |-
+          A pointer so an omitted field is distinguishable from false: without
+          it, every update would silently deactivate the category.
+        type: boolean
+      name:
+        maxLength: 255
+        type: string
+    required:
+    - name
+    type: object
+  github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.UpdateProductRequest:
+    properties:
+      category_id:
+        type: integer
+      description:
+        maxLength: 5000
+        type: string
+      is_active:
+        type: boolean
+      name:
+        maxLength: 255
+        type: string
+      price_cents:
+        type: integer
+      stock:
+        minimum: 0
+        type: integer
+    required:
+    - category_id
+    - name
+    - price_cents
     type: object
   github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.UpdateProfileRequest:
     properties:
@@ -281,6 +466,326 @@ paths:
       summary: Register a new account
       tags:
       - auth
+  /categories:
+    get:
+      description: Public. Returns the active categories, ordered by name.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Categories
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.CategoryListEnvelope'
+        "500":
+          description: Internal error
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+      summary: List categories
+      tags:
+      - categories
+    post:
+      consumes:
+      - application/json
+      description: Admin only. The category is created active.
+      parameters:
+      - description: Category details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.CreateCategoryRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Category created
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.CategoryEnvelope'
+        "400":
+          description: Validation failed
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+        "401":
+          description: Missing or invalid access token
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+        "403":
+          description: Not an administrator
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Create a category
+      tags:
+      - categories
+  /categories/{id}:
+    delete:
+      description: Admin only. A category that still has products is refused; deactivate
+        it instead, or move the products first.
+      parameters:
+      - description: Category ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Category deleted
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.MessageEnvelope'
+        "400":
+          description: The id is not a number
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+        "401":
+          description: Missing or invalid access token
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+        "403":
+          description: Not an administrator
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+        "404":
+          description: No such category
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+        "409":
+          description: The category still has products
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Delete a category
+      tags:
+      - categories
+    put:
+      consumes:
+      - application/json
+      description: Admin only. Omitting is_active leaves it unchanged.
+      parameters:
+      - description: Category ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Category details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.UpdateCategoryRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Updated category
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.CategoryEnvelope'
+        "400":
+          description: Validation failed, or the id is not a number
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+        "401":
+          description: Missing or invalid access token
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+        "403":
+          description: Not an administrator
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+        "404":
+          description: No such category
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Update a category
+      tags:
+      - categories
+  /products:
+    get:
+      description: Public. Returns a page of active products, newest first, with their
+        category and images.
+      parameters:
+      - default: 1
+        description: Page number, from 1
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Page size, up to 100
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: A page of products
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ProductListEnvelope'
+        "400":
+          description: Invalid page or limit
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+        "500":
+          description: Internal error
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+      summary: List products
+      tags:
+      - products
+    post:
+      consumes:
+      - application/json
+      description: 'Admin only. The product is created active. Prices are in minor
+        units: 1999 means $19.99.'
+      parameters:
+      - description: Product details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.CreateProductRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Product created
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ProductEnvelope'
+        "400":
+          description: Validation failed, or the category does not exist
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+        "401":
+          description: Missing or invalid access token
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+        "403":
+          description: Not an administrator
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+        "409":
+          description: The SKU is already in use
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Create a product
+      tags:
+      - products
+  /products/{id}:
+    delete:
+      description: Admin only. The product is soft-deleted and its SKU becomes available
+        again.
+      parameters:
+      - description: Product ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Product deleted
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.MessageEnvelope'
+        "400":
+          description: The id is not a number
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+        "401":
+          description: Missing or invalid access token
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+        "403":
+          description: Not an administrator
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+        "404":
+          description: No such product
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Delete a product
+      tags:
+      - products
+    get:
+      description: Public. An inactive product is reported as not found.
+      parameters:
+      - description: Product ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: The product
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ProductEnvelope'
+        "400":
+          description: The id is not a number
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+        "404":
+          description: No such product, or it is not on sale
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+      summary: Get a product
+      tags:
+      - products
+    put:
+      consumes:
+      - application/json
+      description: Admin only. The SKU cannot be changed. Omitting is_active leaves
+        it unchanged.
+      parameters:
+      - description: Product ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Product details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.UpdateProductRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Updated product
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ProductEnvelope'
+        "400":
+          description: Validation failed, or the category does not exist
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+        "401":
+          description: Missing or invalid access token
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+        "403":
+          description: Not an administrator
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+        "404":
+          description: No such product
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Update a product
+      tags:
+      - products
   /users/profile:
     get:
       description: Returns the authenticated user. Identical to /auth/me.

@@ -21,6 +21,36 @@ type UserEnvelope struct {
 	Data    UserResponse `json:"data"`
 }
 
+// CategoryEnvelope is the response of endpoints returning a single category.
+type CategoryEnvelope struct {
+	Success bool             `json:"success" example:"true"`
+	Message string           `json:"message" example:"ok"`
+	Data    CategoryResponse `json:"data"`
+}
+
+// CategoryListEnvelope is the response of the category list endpoint.
+type CategoryListEnvelope struct {
+	Success bool               `json:"success" example:"true"`
+	Message string             `json:"message" example:"ok"`
+	Data    []CategoryResponse `json:"data"`
+}
+
+// ProductEnvelope is the response of endpoints returning a single product.
+type ProductEnvelope struct {
+	Success bool            `json:"success" example:"true"`
+	Message string          `json:"message" example:"ok"`
+	Data    ProductResponse `json:"data"`
+}
+
+// ProductListEnvelope is the response of the product list endpoint, which
+// carries page metadata alongside the rows.
+type ProductListEnvelope struct {
+	Success bool              `json:"success" example:"true"`
+	Message string            `json:"message" example:"ok"`
+	Data    []ProductResponse `json:"data"`
+	Meta    PageMeta          `json:"meta"`
+}
+
 // MessageEnvelope is the response of endpoints returning no payload.
 type MessageEnvelope struct {
 	Success bool   `json:"success" example:"true"`
