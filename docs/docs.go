@@ -114,7 +114,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns the authenticated user.",
+                "description": "Returns the authenticated user. Identical to /users/profile.",
                 "produces": [
                     "application/json"
                 ],
@@ -131,6 +131,12 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Missing or invalid access token",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope"
+                        }
+                    },
+                    "404": {
+                        "description": "Account no longer exists or is deactivated",
                         "schema": {
                             "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope"
                         }
@@ -223,6 +229,98 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/profile": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the authenticated user. Identical to /auth/me.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Get your profile",
+                "responses": {
+                    "200": {
+                        "description": "The current user",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.UserEnvelope"
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid access token",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope"
+                        }
+                    },
+                    "404": {
+                        "description": "Account no longer exists or is deactivated",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Replaces your name and phone. Role, email, and status are not editable here.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Update your profile",
+                "parameters": [
+                    {
+                        "description": "Profile details",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.UpdateProfileRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Updated user",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.UserEnvelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Validation failed",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope"
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid access token",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope"
+                        }
+                    },
+                    "404": {
+                        "description": "Account no longer exists or is deactivated",
                         "schema": {
                             "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope"
                         }
@@ -346,6 +444,26 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 72,
                     "minLength": 8
+                },
+                "phone": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.UpdateProfileRequest": {
+            "type": "object",
+            "required": [
+                "first_name",
+                "last_name"
+            ],
+            "properties": {
+                "first_name": {
+                    "type": "string",
+                    "maxLength": 100
+                },
+                "last_name": {
+                    "type": "string",
+                    "maxLength": 100
                 },
                 "phone": {
                     "type": "string"

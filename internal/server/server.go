@@ -31,6 +31,7 @@ type Server struct {
 	logger zerolog.Logger
 	tokens *auth.TokenManager
 	auth   *services.AuthService
+	users  *services.UserService
 }
 
 // New builds a Server.
@@ -48,9 +49,10 @@ func New(cfg *config.Config, db *gorm.DB, logger *zerolog.Logger) (*Server, erro
 		db:     db,
 		logger: *logger,
 		tokens: tokens,
-		// Built once, not per request as in the reference: it holds no
-		// per-request state, so rebuilding it on every call is pure waste.
-		auth: services.NewAuthService(db, tokens, cfg.JWT.RefreshTokenExpires, logger),
+		// Built once, not per request as in the reference: they hold no
+		// per-request state, so rebuilding them on every call is pure waste.
+		auth:  services.NewAuthService(db, tokens, cfg.JWT.RefreshTokenExpires, logger),
+		users: services.NewUserService(db),
 	}, nil
 }
 
@@ -113,6 +115,14 @@ func (s *Server) Routes() *gin.Engine {
 	// a client whose access token has expired must still be able to log out.
 	authRoutes.POST("/logout", s.logout)
 	authRoutes.GET("/me", s.Authenticate(), s.me)
+
+	// Everything below requires a valid access token.
+	protected := api.Group("")
+	protected.Use(s.Authenticate())
+
+	users := protected.Group("/users")
+	users.GET("/profile", s.getProfile)
+	users.PUT("/profile", s.updateProfile)
 
 	return router
 }

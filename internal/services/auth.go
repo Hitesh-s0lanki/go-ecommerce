@@ -262,30 +262,6 @@ func (s *AuthService) Logout(ctx context.Context, refreshToken string) error {
 	return nil
 }
 
-// CurrentUser loads the user behind a valid access token.
-//
-// The token proves who the caller was when it was issued; this proves the
-// account still exists and is active.
-func (s *AuthService) CurrentUser(ctx context.Context, userID uint) (*dto.UserResponse, error) {
-	var user models.User
-
-	if err := s.db.WithContext(ctx).First(&user, userID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrInvalidCredentials
-		}
-
-		return nil, fmt.Errorf("find user: %w", err)
-	}
-
-	if !user.IsActive {
-		return nil, ErrInvalidCredentials
-	}
-
-	resp := dto.NewUserResponse(&user)
-
-	return &resp, nil
-}
-
 // issueTokens mints a pair and records the refresh token's hash. It takes the
 // transaction so the record and the caller's work commit together.
 func (s *AuthService) issueTokens(tx *gorm.DB, user *models.User) (*dto.AuthResponse, error) {
