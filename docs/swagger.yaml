@@ -85,6 +85,20 @@ definitions:
     - last_name
     - password
     type: object
+  github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.UpdateProfileRequest:
+    properties:
+      first_name:
+        maxLength: 100
+        type: string
+      last_name:
+        maxLength: 100
+        type: string
+      phone:
+        type: string
+    required:
+    - first_name
+    - last_name
+    type: object
   github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.UserEnvelope:
     properties:
       data:
@@ -183,7 +197,7 @@ paths:
       - auth
   /auth/me:
     get:
-      description: Returns the authenticated user.
+      description: Returns the authenticated user. Identical to /users/profile.
       produces:
       - application/json
       responses:
@@ -193,6 +207,10 @@ paths:
             $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.UserEnvelope'
         "401":
           description: Missing or invalid access token
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+        "404":
+          description: Account no longer exists or is deactivated
           schema:
             $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
       security:
@@ -263,6 +281,65 @@ paths:
       summary: Register a new account
       tags:
       - auth
+  /users/profile:
+    get:
+      description: Returns the authenticated user. Identical to /auth/me.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: The current user
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.UserEnvelope'
+        "401":
+          description: Missing or invalid access token
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+        "404":
+          description: Account no longer exists or is deactivated
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Get your profile
+      tags:
+      - users
+    put:
+      consumes:
+      - application/json
+      description: Replaces your name and phone. Role, email, and status are not editable
+        here.
+      parameters:
+      - description: Profile details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.UpdateProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Updated user
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.UserEnvelope'
+        "400":
+          description: Validation failed
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+        "401":
+          description: Missing or invalid access token
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+        "404":
+          description: Account no longer exists or is deactivated
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Update your profile
+      tags:
+      - users
 securityDefinitions:
   BearerAuth:
     description: Access token from /auth/login, sent as "Bearer <token>". A refresh

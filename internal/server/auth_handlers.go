@@ -2,7 +2,6 @@ package server
 
 import (
 	"errors"
-	"net/http"
 
 	"github.com/gin-gonic/gin"
 
@@ -145,32 +144,16 @@ func (s *Server) logout(c *gin.Context) {
 // me godoc
 //
 //	@Summary		Current account
-//	@Description	Returns the authenticated user.
+//	@Description	Returns the authenticated user. Identical to /users/profile.
 //	@Tags			auth
 //	@Produce		json
 //	@Security		BearerAuth
 //	@Success		200	{object}	dto.UserEnvelope	"The current user"
 //	@Failure		401	{object}	dto.ErrorEnvelope	"Missing or invalid access token"
+//	@Failure		404	{object}	dto.ErrorEnvelope	"Account no longer exists or is deactivated"
 //	@Router			/auth/me [get]
 func (s *Server) me(c *gin.Context) {
-	id, ok := CurrentUserID(c)
-	if !ok {
-		utils.UnauthorizedResponse(c, "not authenticated")
-		return
-	}
-
-	user, err := s.auth.CurrentUser(c.Request.Context(), id)
-	if err != nil {
-		if errors.Is(err, services.ErrInvalidCredentials) {
-			// The token is valid but the account is gone or disabled.
-			utils.ErrorResponse(c, http.StatusUnauthorized, "account unavailable", nil)
-			return
-		}
-
-		utils.InternalServerErrorResponse(c, "failed to load account", err)
-
-		return
-	}
-
-	utils.SuccessResponse(c, "ok", user)
+	// Same handler body as getProfile: one implementation, two documented
+	// spellings of the same request.
+	s.getProfile(c)
 }

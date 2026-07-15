@@ -73,6 +73,17 @@ Login is deliberately uniform: a wrong password, an unknown email, and a
 deactivated account all return the same error, and an unknown email still pays
 for a bcrypt comparison so it cannot be identified with a stopwatch.
 
+### Profiles
+
+`GET /users/profile` and `/auth/me` are the same request under two names, sharing
+one implementation. Both re-check the account: an access token stays valid for
+its full lifetime, so a deactivated user is reported as not found rather than
+served from the token's claims.
+
+`PUT /users/profile` writes only `first_name`, `last_name`, and `phone`. Role,
+email, and status are not editable here — and the update names its columns rather
+than saving a loaded row, which would revert anything committed in between.
+
 ## DTOs
 
 `internal/dto` holds what crosses the wire, deliberately separate from the
@@ -105,6 +116,8 @@ fails if it is stale.
 | `POST /api/v1/auth/refresh` | Rotate a refresh token |
 | `POST /api/v1/auth/logout` | Revoke a refresh token |
 | `GET /api/v1/auth/me` | The authenticated user (requires an access token) |
+| `GET /api/v1/users/profile` | The authenticated user — identical to `/auth/me` |
+| `PUT /api/v1/users/profile` | Replace your name and phone |
 
 Every response uses one envelope:
 
