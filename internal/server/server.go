@@ -9,10 +9,15 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
+	swaggerfiles "github.com/swaggo/files"
+	ginswagger "github.com/swaggo/gin-swagger"
 	"gorm.io/gorm"
 
+	// Registers the generated spec with swag; imported only for that effect.
+	_ "github.com/Hitesh-s0lanki/go-ecommerce/docs"
 	"github.com/Hitesh-s0lanki/go-ecommerce/internal/auth"
 	"github.com/Hitesh-s0lanki/go-ecommerce/internal/config"
+	"github.com/Hitesh-s0lanki/go-ecommerce/internal/services"
 	"github.com/Hitesh-s0lanki/go-ecommerce/internal/utils"
 )
 
@@ -25,6 +30,7 @@ type Server struct {
 	db     *gorm.DB
 	logger zerolog.Logger
 	tokens *auth.TokenManager
+	auth   *services.AuthService
 }
 
 // New builds a Server.
@@ -37,7 +43,15 @@ func New(cfg *config.Config, db *gorm.DB, logger *zerolog.Logger) (*Server, erro
 		return nil, fmt.Errorf("build token manager: %w", err)
 	}
 
-	return &Server{config: cfg, db: db, logger: *logger, tokens: tokens}, nil
+	return &Server{
+		config: cfg,
+		db:     db,
+		logger: *logger,
+		tokens: tokens,
+		// Built once, not per request as in the reference: it holds no
+		// per-request state, so rebuilding it on every call is pure waste.
+		auth: services.NewAuthService(db, tokens, cfg.JWT.RefreshTokenExpires, logger),
+	}, nil
 }
 
 // Routes builds the gin engine.
@@ -70,6 +84,35 @@ func (s *Server) Routes() *gin.Engine {
 	// database, so an instance with a dead pool is pulled from the load
 	// balancer instead of serving errors.
 	router.GET("/health/ready", s.ready)
+
+	// The interactive docs are development-only: they describe every endpoint
+	// and its payloads, which is reconnaissance in production.
+	if !s.config.IsProduction() {
+		swagger := ginswagger.WrapHandler(swaggerfiles.Handler)
+
+		router.GET("/swagger/*any", func(c *gin.Context) {
+			// The wrapped handler only serves named files, so /swagger/ —
+			// which is what gin redirects /swagger to, and what anyone
+			// actually types — would 404. Send it to the real page.
+			if p := c.Param("any"); p == "" || p == "/" {
+				c.Redirect(http.StatusFound, "/swagger/index.html")
+				return
+			}
+
+			swagger(c)
+		})
+	}
+
+	api := router.Group("/api/v1")
+
+	authRoutes := api.Group("/auth")
+	authRoutes.POST("/register", s.register)
+	authRoutes.POST("/login", s.login)
+	authRoutes.POST("/refresh", s.refresh)
+	// Logout takes the refresh token in the body and needs no access token:
+	// a client whose access token has expired must still be able to log out.
+	authRoutes.POST("/logout", s.logout)
+	authRoutes.GET("/me", s.Authenticate(), s.me)
 
 	return router
 }

@@ -37,6 +37,10 @@ func New(ctx context.Context, cfg *config.DatabaseConfig, ginMode string) (*gorm
 
 	db, err := gorm.Open(postgres.Open(cfg.DSN()), &gorm.Config{
 		Logger: gormlogger.Default.LogMode(logLevel),
+		// Map driver errors to gorm's own, so a duplicate key is
+		// gorm.ErrDuplicatedKey rather than a Postgres string callers would
+		// have to pattern-match.
+		TranslateError: true,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("open connection: %w", err)
