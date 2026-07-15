@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# Vet and tests, before anything reaches the remote.
+#
+# Enable with: make hooks
+# Skip once with: git push --no-verify
+set -uo pipefail
+
+# Nothing to check when the push only deletes refs.
+if [ -t 0 ]; then
+	has_commits=1
+else
+	has_commits=0
+	while read -r _local_ref local_sha _remote_ref _remote_sha; do
+		# All-zero local sha means a branch deletion.
+		if [ "$local_sha" != "0000000000000000000000000000000000000000" ]; then
+			has_commits=1
+		fi
+	done
+fi
+
+if [ "$has_commits" -eq 0 ]; then
+	exit 0
+fi
+
+fail=0
+
+echo "pre-push: go vet"
+if ! go vet ./...; then
+	fail=1
+fi
+
+# Integration tests skip without TEST_DATABASE_DSN, so this stays fast and
+# green on a machine with no database. Use 'make test-integration' for those.
+echo "pre-push: go test -race"
+if ! go test -race ./...; then
+	fail=1
+fi
+
+if [ "$fail" -ne 0 ]; then
+	echo >&2
+	echo "pre-push: push aborted. Bypass with 'git push --no-verify' if you must." >&2
+	exit 1
+fi
+
+echo "pre-push: ok"
