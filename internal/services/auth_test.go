@@ -3,16 +3,12 @@ package services_test
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/rs/zerolog"
-	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	gormlogger "gorm.io/gorm/logger"
 
 	"github.com/Hitesh-s0lanki/go-ecommerce/internal/auth"
 	"github.com/Hitesh-s0lanki/go-ecommerce/internal/config"
@@ -29,37 +25,7 @@ const testSecret = "test-secret-that-is-at-least-32-bytes-long"
 func newAuthService(t *testing.T) (*services.AuthService, *gorm.DB) {
 	t.Helper()
 
-	dsn := os.Getenv("TEST_DATABASE_DSN")
-	if dsn == "" {
-		t.Skip("TEST_DATABASE_DSN not set; skipping database integration test")
-	}
-
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
-		Logger:         gormlogger.Default.LogMode(gormlogger.Silent),
-		TranslateError: true,
-	})
-	if err != nil {
-		t.Fatalf("connect: %v", err)
-	}
-
-	schema := fmt.Sprintf("test_svc_%d", time.Now().UnixNano())
-	if err := db.Exec("CREATE SCHEMA " + schema).Error; err != nil {
-		t.Fatalf("create schema: %v", err)
-	}
-
-	t.Cleanup(func() {
-		if err := db.Exec("DROP SCHEMA " + schema + " CASCADE").Error; err != nil {
-			t.Errorf("drop schema: %v", err)
-		}
-	})
-
-	if err := db.Exec("SET search_path TO " + schema).Error; err != nil {
-		t.Fatalf("set search_path: %v", err)
-	}
-
-	if err := db.AutoMigrate(models.All()...); err != nil {
-		t.Fatalf("automigrate: %v", err)
-	}
+	db := newSchemaDB(t)
 
 	tokens, err := auth.NewTokenManager(&config.JWTConfig{
 		Secret:              testSecret,

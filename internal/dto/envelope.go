@@ -58,6 +58,29 @@ type ProductImageEnvelope struct {
 	Data    ProductImageResponse `json:"data"`
 }
 
+// CartEnvelope is the response of the cart endpoints.
+type CartEnvelope struct {
+	Success bool         `json:"success" example:"true"`
+	Message string       `json:"message" example:"ok"`
+	Data    CartResponse `json:"data"`
+}
+
+// OrderEnvelope is the response of endpoints returning a single order.
+type OrderEnvelope struct {
+	Success bool          `json:"success" example:"true"`
+	Message string        `json:"message" example:"order placed"`
+	Data    OrderResponse `json:"data"`
+}
+
+// OrderListEnvelope is the response of the order list endpoint, which carries
+// page metadata alongside the rows.
+type OrderListEnvelope struct {
+	Success bool            `json:"success" example:"true"`
+	Message string          `json:"message" example:"ok"`
+	Data    []OrderResponse `json:"data"`
+	Meta    PageMeta        `json:"meta"`
+}
+
 // MessageEnvelope is the response of endpoints returning no payload.
 type MessageEnvelope struct {
 	Success bool   `json:"success" example:"true"`

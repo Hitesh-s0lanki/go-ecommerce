@@ -236,6 +236,225 @@ const docTemplate = `{
                 }
             }
         },
+        "/cart": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the authenticated user's cart, priced from the products' current prices. A user who has never had a cart gets an empty one rather than a 404.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cart"
+                ],
+                "summary": "Get your cart",
+                "responses": {
+                    "200": {
+                        "description": "The cart",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.CartEnvelope"
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid access token",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope"
+                        }
+                    },
+                    "404": {
+                        "description": "Account no longer exists",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/cart/items": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Adds a product, or increases the quantity already in the cart. The cart is not a reservation — stock is only held once the order is placed — but a quantity beyond what is in stock is refused here rather than at checkout.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cart"
+                ],
+                "summary": "Add an item to your cart",
+                "parameters": [
+                    {
+                        "description": "Product and quantity",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.AddToCartRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The updated cart",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.CartEnvelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Validation failed, or the product is not on sale",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope"
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid access token",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope"
+                        }
+                    },
+                    "404": {
+                        "description": "No such product",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope"
+                        }
+                    },
+                    "409": {
+                        "description": "Not enough stock",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/cart/items/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Replaces the quantity of one line. To remove it, use DELETE — a quantity of zero is refused.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cart"
+                ],
+                "summary": "Set the quantity of a cart item",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Cart item ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "New quantity",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.UpdateCartItemRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The updated cart",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.CartEnvelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Validation failed, or the product is not on sale",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope"
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid access token",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope"
+                        }
+                    },
+                    "404": {
+                        "description": "No such item in your cart",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope"
+                        }
+                    },
+                    "409": {
+                        "description": "Not enough stock",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cart"
+                ],
+                "summary": "Remove an item from your cart",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Cart item ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Item removed",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.MessageEnvelope"
+                        }
+                    },
+                    "400": {
+                        "description": "The id is not a number",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope"
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid access token",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope"
+                        }
+                    },
+                    "404": {
+                        "description": "No such item in your cart",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope"
+                        }
+                    }
+                }
+            }
+        },
         "/categories": {
             "get": {
                 "description": "Public. Returns the active categories, ordered by name.",
@@ -442,6 +661,158 @@ const docTemplate = `{
                     },
                     "409": {
                         "description": "The category still has products",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/orders": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns a page of your own orders, newest first.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "orders"
+                ],
+                "summary": "List your orders",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number, from 1",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Page size, up to 100",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A page of orders",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.OrderListEnvelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid page or limit",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope"
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid access token",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Turns your cart into an order: stock comes down, the prices you pay are recorded on the order, and the cart is emptied. All of it happens together or not at all. Fails if any line is out of stock or no longer on sale.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "orders"
+                ],
+                "summary": "Place an order",
+                "responses": {
+                    "201": {
+                        "description": "The placed order",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.OrderEnvelope"
+                        }
+                    },
+                    "400": {
+                        "description": "The cart is empty, or a product is no longer on sale",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope"
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid access token",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope"
+                        }
+                    },
+                    "404": {
+                        "description": "A product in the cart no longer exists",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope"
+                        }
+                    },
+                    "409": {
+                        "description": "Not enough stock for one of the lines",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/orders/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns an order you placed. Someone else's order id reads as not found.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "orders"
+                ],
+                "summary": "Get one of your orders",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Order ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The order",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.OrderEnvelope"
+                        }
+                    },
+                    "400": {
+                        "description": "The id is not a number",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope"
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid access token",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope"
+                        }
+                    },
+                    "404": {
+                        "description": "No such order of yours",
                         "schema": {
                             "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope"
                         }
@@ -897,6 +1268,22 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.AddToCartRequest": {
+            "type": "object",
+            "required": [
+                "product_id",
+                "quantity"
+            ],
+            "properties": {
+                "product_id": {
+                    "type": "integer"
+                },
+                "quantity": {
+                    "type": "integer",
+                    "minimum": 1
+                }
+            }
+        },
         "github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.AuthEnvelope": {
             "type": "object",
             "properties": {
@@ -928,6 +1315,65 @@ const docTemplate = `{
                 },
                 "user": {
                     "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.UserResponse"
+                }
+            }
+        },
+        "github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.CartEnvelope": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.CartResponse"
+                },
+                "message": {
+                    "type": "string",
+                    "example": "ok"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.CartItemResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "product": {
+                    "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ProductResponse"
+                },
+                "quantity": {
+                    "type": "integer"
+                },
+                "subtotal_cents": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.CartResponse": {
+            "type": "object",
+            "properties": {
+                "cart_items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.CartItemResponse"
+                    }
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "item_count": {
+                    "type": "integer"
+                },
+                "last_updated": {
+                    "type": "string"
+                },
+                "total_cents": {
+                    "type": "integer"
+                },
+                "user_id": {
+                    "type": "integer"
                 }
             }
         },
@@ -1074,6 +1520,93 @@ const docTemplate = `{
                 "success": {
                     "type": "boolean",
                     "example": true
+                }
+            }
+        },
+        "github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.OrderEnvelope": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.OrderResponse"
+                },
+                "message": {
+                    "type": "string",
+                    "example": "order placed"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.OrderItemResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "product": {
+                    "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ProductResponse"
+                },
+                "quantity": {
+                    "description": "Quantity and the price paid at the time of purchase.",
+                    "type": "integer"
+                },
+                "subtotal_cents": {
+                    "type": "integer"
+                },
+                "unit_price_cents": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.OrderListEnvelope": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.OrderResponse"
+                    }
+                },
+                "message": {
+                    "type": "string",
+                    "example": "ok"
+                },
+                "meta": {
+                    "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.PageMeta"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.OrderResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "description": "A real timestamp, not a preformatted string: clients localise it\nthemselves, and encoding/json already emits RFC 3339.",
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "order_items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.OrderItemResponse"
+                    }
+                },
+                "status": {
+                    "type": "string"
+                },
+                "total_amount_cents": {
+                    "description": "Minor units, matching the model.",
+                    "type": "integer"
+                },
+                "user_id": {
+                    "type": "integer"
                 }
             }
         },
@@ -1246,6 +1779,18 @@ const docTemplate = `{
                 },
                 "phone": {
                     "type": "string"
+                }
+            }
+        },
+        "github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.UpdateCartItemRequest": {
+            "type": "object",
+            "required": [
+                "quantity"
+            ],
+            "properties": {
+                "quantity": {
+                    "type": "integer",
+                    "minimum": 1
                 }
             }
         },
