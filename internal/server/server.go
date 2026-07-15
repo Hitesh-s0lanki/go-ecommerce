@@ -36,6 +36,8 @@ type Server struct {
 	categories *services.CategoryService
 	products   *services.ProductService
 	uploads    *services.UploadService
+	carts      *services.CartService
+	orders     *services.OrderService
 }
 
 // New builds a Server.
@@ -76,6 +78,8 @@ func New(cfg *config.Config, db *gorm.DB, logger *zerolog.Logger) (*Server, erro
 		categories: services.NewCategoryService(db),
 		products:   services.NewProductService(db),
 		uploads:    services.NewUploadService(provider, cfg.Upload.MaxFileSize),
+		carts:      services.NewCartService(db),
+		orders:     services.NewOrderService(db),
 	}, nil
 }
 
@@ -153,6 +157,20 @@ func (s *Server) Routes() *gin.Engine {
 	users := protected.Group("/users")
 	users.GET("/profile", s.getProfile)
 	users.PUT("/profile", s.updateProfile)
+
+	// A cart and an order belong to the customer who owns them, so these are
+	// scoped to the caller's own id rather than taking one from the path:
+	// there is no id to tamper with.
+	cart := protected.Group("/cart")
+	cart.GET("", s.getCart)
+	cart.POST("/items", s.addToCart)
+	cart.PUT("/items/:id", s.updateCartItem)
+	cart.DELETE("/items/:id", s.removeFromCart)
+
+	orders := protected.Group("/orders")
+	orders.POST("", s.createOrder)
+	orders.GET("", s.getOrders)
+	orders.GET("/:id", s.getOrder)
 
 	// Writing the catalogue is an admin power. RequireAdmin sits on the group
 	// rather than on each route, so a later endpoint added here cannot ship

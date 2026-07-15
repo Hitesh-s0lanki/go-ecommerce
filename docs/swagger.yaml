@@ -1,5 +1,16 @@
 basePath: /api/v1
 definitions:
+  github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.AddToCartRequest:
+    properties:
+      product_id:
+        type: integer
+      quantity:
+        minimum: 1
+        type: integer
+    required:
+    - product_id
+    - quantity
+    type: object
   github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.AuthEnvelope:
     properties:
       data:
@@ -24,6 +35,45 @@ definitions:
         type: string
       user:
         $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.UserResponse'
+    type: object
+  github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.CartEnvelope:
+    properties:
+      data:
+        $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.CartResponse'
+      message:
+        example: ok
+        type: string
+      success:
+        example: true
+        type: boolean
+    type: object
+  github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.CartItemResponse:
+    properties:
+      id:
+        type: integer
+      product:
+        $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ProductResponse'
+      quantity:
+        type: integer
+      subtotal_cents:
+        type: integer
+    type: object
+  github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.CartResponse:
+    properties:
+      cart_items:
+        items:
+          $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.CartItemResponse'
+        type: array
+      id:
+        type: integer
+      item_count:
+        type: integer
+      last_updated:
+        type: string
+      total_cents:
+        type: integer
+      user_id:
+        type: integer
     type: object
   github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.CategoryEnvelope:
     properties:
@@ -125,6 +175,67 @@ definitions:
       success:
         example: true
         type: boolean
+    type: object
+  github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.OrderEnvelope:
+    properties:
+      data:
+        $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.OrderResponse'
+      message:
+        example: order placed
+        type: string
+      success:
+        example: true
+        type: boolean
+    type: object
+  github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.OrderItemResponse:
+    properties:
+      id:
+        type: integer
+      product:
+        $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ProductResponse'
+      quantity:
+        description: Quantity and the price paid at the time of purchase.
+        type: integer
+      subtotal_cents:
+        type: integer
+      unit_price_cents:
+        type: integer
+    type: object
+  github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.OrderListEnvelope:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.OrderResponse'
+        type: array
+      message:
+        example: ok
+        type: string
+      meta:
+        $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.PageMeta'
+      success:
+        example: true
+        type: boolean
+    type: object
+  github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.OrderResponse:
+    properties:
+      created_at:
+        description: |-
+          A real timestamp, not a preformatted string: clients localise it
+          themselves, and encoding/json already emits RFC 3339.
+        type: string
+      id:
+        type: integer
+      order_items:
+        items:
+          $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.OrderItemResponse'
+        type: array
+      status:
+        type: string
+      total_amount_cents:
+        description: Minor units, matching the model.
+        type: integer
+      user_id:
+        type: integer
     type: object
   github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.PageMeta:
     properties:
@@ -242,6 +353,14 @@ definitions:
     - first_name
     - last_name
     - password
+    type: object
+  github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.UpdateCartItemRequest:
+    properties:
+      quantity:
+        minimum: 1
+        type: integer
+    required:
+    - quantity
     type: object
   github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.UpdateCategoryRequest:
     properties:
@@ -477,6 +596,150 @@ paths:
       summary: Register a new account
       tags:
       - auth
+  /cart:
+    get:
+      description: Returns the authenticated user's cart, priced from the products'
+        current prices. A user who has never had a cart gets an empty one rather than
+        a 404.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: The cart
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.CartEnvelope'
+        "401":
+          description: Missing or invalid access token
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+        "404":
+          description: Account no longer exists
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Get your cart
+      tags:
+      - cart
+  /cart/items:
+    post:
+      consumes:
+      - application/json
+      description: Adds a product, or increases the quantity already in the cart.
+        The cart is not a reservation — stock is only held once the order is placed
+        — but a quantity beyond what is in stock is refused here rather than at checkout.
+      parameters:
+      - description: Product and quantity
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.AddToCartRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: The updated cart
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.CartEnvelope'
+        "400":
+          description: Validation failed, or the product is not on sale
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+        "401":
+          description: Missing or invalid access token
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+        "404":
+          description: No such product
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+        "409":
+          description: Not enough stock
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Add an item to your cart
+      tags:
+      - cart
+  /cart/items/{id}:
+    delete:
+      parameters:
+      - description: Cart item ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Item removed
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.MessageEnvelope'
+        "400":
+          description: The id is not a number
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+        "401":
+          description: Missing or invalid access token
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+        "404":
+          description: No such item in your cart
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Remove an item from your cart
+      tags:
+      - cart
+    put:
+      consumes:
+      - application/json
+      description: Replaces the quantity of one line. To remove it, use DELETE — a
+        quantity of zero is refused.
+      parameters:
+      - description: Cart item ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: New quantity
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.UpdateCartItemRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: The updated cart
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.CartEnvelope'
+        "400":
+          description: Validation failed, or the product is not on sale
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+        "401":
+          description: Missing or invalid access token
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+        "404":
+          description: No such item in your cart
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+        "409":
+          description: Not enough stock
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Set the quantity of a cart item
+      tags:
+      - cart
   /categories:
     get:
       description: Public. Returns the active categories, ordered by name.
@@ -615,6 +878,107 @@ paths:
       summary: Update a category
       tags:
       - categories
+  /orders:
+    get:
+      description: Returns a page of your own orders, newest first.
+      parameters:
+      - default: 1
+        description: Page number, from 1
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Page size, up to 100
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: A page of orders
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.OrderListEnvelope'
+        "400":
+          description: Invalid page or limit
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+        "401":
+          description: Missing or invalid access token
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: List your orders
+      tags:
+      - orders
+    post:
+      description: 'Turns your cart into an order: stock comes down, the prices you
+        pay are recorded on the order, and the cart is emptied. All of it happens
+        together or not at all. Fails if any line is out of stock or no longer on
+        sale.'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: The placed order
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.OrderEnvelope'
+        "400":
+          description: The cart is empty, or a product is no longer on sale
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+        "401":
+          description: Missing or invalid access token
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+        "404":
+          description: A product in the cart no longer exists
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+        "409":
+          description: Not enough stock for one of the lines
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Place an order
+      tags:
+      - orders
+  /orders/{id}:
+    get:
+      description: Returns an order you placed. Someone else's order id reads as not
+        found.
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: The order
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.OrderEnvelope'
+        "400":
+          description: The id is not a number
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+        "401":
+          description: Missing or invalid access token
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+        "404":
+          description: No such order of yours
+          schema:
+            $ref: '#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Get one of your orders
+      tags:
+      - orders
   /products:
     get:
       description: Public. Returns a page of active products, newest first, with their

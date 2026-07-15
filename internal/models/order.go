@@ -87,9 +87,13 @@ type Cart struct {
 // Unlike OrderItem it stores no price: a cart is priced from the product at
 // checkout, so it always reflects the current price.
 type CartItem struct {
-	ID        uint `json:"id"         gorm:"primaryKey"`
-	CartID    uint `json:"cart_id"    gorm:"not null;index"`
-	ProductID uint `json:"product_id" gorm:"not null;index"`
+	ID uint `json:"id" gorm:"primaryKey"`
+	// Partial unique index on (cart_id, product_id): one line per product per
+	// cart. It is what lets adding to the cart be a single atomic upsert
+	// rather than a read followed by a write, which races into two lines for
+	// the same product.
+	CartID    uint `json:"cart_id"    gorm:"not null;index;uniqueIndex:uniq_cart_items_cart_id_product_id,where:deleted_at IS NULL,priority:1"`
+	ProductID uint `json:"product_id" gorm:"not null;index;uniqueIndex:uniq_cart_items_cart_id_product_id,where:deleted_at IS NULL,priority:2"`
 	Quantity  int  `json:"quantity"   gorm:"not null;check:quantity > 0"`
 
 	CreatedAt time.Time      `json:"created_at"`
