@@ -79,10 +79,33 @@ type AWSConfig struct {
 	S3Endpoint      string
 }
 
+// Upload provider names.
+const (
+	// UploadProviderLocal writes to the filesystem under UploadConfig.Path.
+	UploadProviderLocal = "local"
+	// UploadProviderS3 writes to the bucket in AWSConfig.
+	UploadProviderS3 = "s3"
+)
+
 // UploadConfig configures file uploads.
 type UploadConfig struct {
-	Path        string
-	MaxFileSize int64
+	// Provider is "local" or "s3". An unknown value is rejected at startup
+	// rather than quietly falling back to local: silently writing to a disk
+	// that no CDN serves, on a box that will be replaced, loses the files.
+	Provider string
+	// Path is the directory the local provider writes to. Unused for s3.
+	Path string
+	// PublicBaseURL is prepended to a stored key to build the URL clients
+	// fetch. Empty means "serve local uploads from this API" — fine in
+	// development, but in production this should point at the CDN or bucket
+	// in front of the files.
+	PublicBaseURL string
+	MaxFileSize   int64
+}
+
+// UsesLocalProvider reports whether uploads are written to the filesystem.
+func (c *UploadConfig) UsesLocalProvider() bool {
+	return c.Provider == UploadProviderLocal
 }
 
 // IsProduction reports whether the server is running in release mode.
@@ -143,8 +166,10 @@ func Load() (*Config, error) {
 			S3Endpoint:      getEnv("AWS_S3_ENDPOINT", "http://localhost:4566"),
 		},
 		Upload: UploadConfig{
-			Path:        getEnv("UPLOAD_PATH", "./uploads"),
-			MaxFileSize: maxUploadSize,
+			Provider:      getEnv("UPLOAD_PROVIDER", UploadProviderLocal),
+			Path:          getEnv("UPLOAD_PATH", "./uploads"),
+			PublicBaseURL: strings.TrimSuffix(getEnv("UPLOAD_PUBLIC_BASE_URL", ""), "/"),
+			MaxFileSize:   maxUploadSize,
 		},
 	}
 
@@ -175,7 +200,23 @@ func (c *Config) validate() error {
 		return fmt.Errorf("MAX_UPLOAD_SIZE must be positive, got %d", c.Upload.MaxFileSize)
 	}
 
+	if !validUploadProviders[c.Upload.Provider] {
+		return fmt.Errorf("UPLOAD_PROVIDER must be %q or %q, got %q",
+			UploadProviderLocal, UploadProviderS3, c.Upload.Provider)
+	}
+
+	// A bucket name is what makes an s3 upload land somewhere; an empty one
+	// fails on the first request rather than at startup.
+	if c.Upload.Provider == UploadProviderS3 && c.AWS.S3Bucket == "" {
+		return errors.New("AWS_S3_BUCKET must be set when UPLOAD_PROVIDER is s3")
+	}
+
 	return nil
+}
+
+var validUploadProviders = map[string]bool{
+	UploadProviderLocal: true,
+	UploadProviderS3:    true,
 }
 
 func getEnv(key, fallback string) string {

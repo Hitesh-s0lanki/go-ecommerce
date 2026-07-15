@@ -716,6 +716,86 @@
                 }
             }
         },
+        "/products/{id}/images": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin only. Multipart upload of an image file. The file is identified by its contents, not its name; jpeg, png, gif, and webp are accepted. The first image a product gets becomes its primary one.",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "products"
+                ],
+                "summary": "Upload a product image",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Product ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Image file",
+                        "name": "image",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Alt text for screen readers",
+                        "name": "alt_text",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Image stored",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ProductImageEnvelope"
+                        }
+                    },
+                    "400": {
+                        "description": "No file, or it is not an image we accept",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope"
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid access token",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope"
+                        }
+                    },
+                    "403": {
+                        "description": "Not an administrator",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope"
+                        }
+                    },
+                    "404": {
+                        "description": "No such product",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope"
+                        }
+                    },
+                    "413": {
+                        "description": "File exceeds the upload limit",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ErrorEnvelope"
+                        }
+                    }
+                }
+            }
+        },
         "/users/profile": {
             "get": {
                 "security": [
@@ -1016,6 +1096,22 @@
                 "message": {
                     "type": "string",
                     "example": "ok"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ProductImageEnvelope": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/github_com_Hitesh-s0lanki_go-ecommerce_internal_dto.ProductImageResponse"
+                },
+                "message": {
+                    "type": "string",
+                    "example": "image uploaded"
                 },
                 "success": {
                     "type": "boolean",

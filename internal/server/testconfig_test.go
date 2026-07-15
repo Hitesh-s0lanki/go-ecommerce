@@ -1,6 +1,7 @@
 package server_test
 
 import (
+	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -10,6 +11,21 @@ import (
 
 // testSecret is long enough to satisfy the token manager's key-length check.
 const testSecret = "test-secret-that-is-at-least-32-bytes-long"
+
+// testUploadsDir backs the local upload provider that server.New builds.
+//
+// A shared temp directory rather than t.TempDir(): testConfig has no *testing.T
+// and is called from every test that builds a Server. Nothing writes here
+// unless a test uploads, and those pass their own directory. TestMain removes
+// it.
+var testUploadsDir = func() string {
+	dir, err := os.MkdirTemp("", "go-ecommerce-server-test")
+	if err != nil {
+		panic("create temp upload dir: " + err.Error())
+	}
+
+	return dir
+}()
 
 func testConfig(origins []string) *config.Config {
 	return &config.Config{
@@ -22,6 +38,11 @@ func testConfig(origins []string) *config.Config {
 			Secret:              testSecret,
 			ExpiresIn:           time.Hour,
 			RefreshTokenExpires: 24 * time.Hour,
+		},
+		Upload: config.UploadConfig{
+			Provider:    config.UploadProviderLocal,
+			Path:        testUploadsDir,
+			MaxFileSize: 10 << 20,
 		},
 	}
 }
