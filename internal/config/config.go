@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -24,6 +25,14 @@ type Config struct {
 type ServerConfig struct {
 	Port    string
 	GinMode string
+	// AllowedOrigins are the CORS origins to accept. A single "*" allows any
+	// origin, which is why credentials are never echoed alongside it.
+	AllowedOrigins []string
+}
+
+// AllowsAnyOrigin reports whether CORS is wide open.
+func (c *ServerConfig) AllowsAnyOrigin() bool {
+	return len(c.AllowedOrigins) == 1 && c.AllowedOrigins[0] == "*"
 }
 
 // DatabaseConfig configures the Postgres connection.
@@ -99,8 +108,9 @@ func Load() (*Config, error) {
 
 	cfg := &Config{
 		Server: ServerConfig{
-			Port:    getEnv("PORT", "8080"),
-			GinMode: getEnv("GIN_MODE", "debug"),
+			Port:           getEnv("PORT", "8080"),
+			GinMode:        getEnv("GIN_MODE", "debug"),
+			AllowedOrigins: getEnvList("ALLOWED_ORIGINS", []string{"*"}),
 		},
 		Database: DatabaseConfig{
 			Host:     getEnv("DB_HOST", "localhost"),
@@ -163,6 +173,29 @@ func getEnv(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+// getEnvList reads a comma-separated list, trimming spaces and dropping empty
+// entries so "a, b," yields exactly ["a", "b"].
+func getEnvList(key string, fallback []string) []string {
+	raw := os.Getenv(key)
+	if raw == "" {
+		return fallback
+	}
+
+	var out []string
+
+	for _, part := range strings.Split(raw, ",") {
+		if trimmed := strings.TrimSpace(part); trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+
+	if len(out) == 0 {
+		return fallback
+	}
+
+	return out
 }
 
 func getEnvDuration(key string, fallback time.Duration) (time.Duration, error) {
