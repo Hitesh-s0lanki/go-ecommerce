@@ -88,7 +88,19 @@ func (s *Server) Routes() *gin.Engine {
 	// The interactive docs are development-only: they describe every endpoint
 	// and its payloads, which is reconnaissance in production.
 	if !s.config.IsProduction() {
-		router.GET("/swagger/*any", ginswagger.WrapHandler(swaggerfiles.Handler))
+		swagger := ginswagger.WrapHandler(swaggerfiles.Handler)
+
+		router.GET("/swagger/*any", func(c *gin.Context) {
+			// The wrapped handler only serves named files, so /swagger/ —
+			// which is what gin redirects /swagger to, and what anyone
+			// actually types — would 404. Send it to the real page.
+			if p := c.Param("any"); p == "" || p == "/" {
+				c.Redirect(http.StatusFound, "/swagger/index.html")
+				return
+			}
+
+			swagger(c)
+		})
 	}
 
 	api := router.Group("/api/v1")
