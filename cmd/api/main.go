@@ -1,4 +1,13 @@
 // Command api is the entrypoint for the go-ecommerce API server.
+//
+//	@title						go-ecommerce API
+//	@version					0.1.0
+//	@description				E-commerce backend. Money is always in minor units: a price_cents of 1999 means $19.99.
+//	@BasePath					/api/v1
+//	@securityDefinitions.apikey	BearerAuth
+//	@in							header
+//	@name						Authorization
+//	@description				Access token from /auth/login, sent as "Bearer <token>". A refresh token is rejected here.
 package main
 
 import (

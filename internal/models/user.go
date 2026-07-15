@@ -57,9 +57,13 @@ func (u *User) FullName() string {
 type RefreshToken struct {
 	ID     uint `json:"id"      gorm:"primaryKey"`
 	UserID uint `json:"user_id" gorm:"not null;index"`
-	// Token is excluded from JSON: it is a credential. Its unique index is
-	// partial so a revoked token does not block reissuing the same value.
-	Token string `json:"-" gorm:"not null;uniqueIndex:uniq_refresh_tokens_token,where:deleted_at IS NULL"`
+	// TokenHash is a SHA-256 hash of the refresh token, never the token
+	// itself: a database leak must not hand out working credentials. Plain
+	// SHA-256 rather than bcrypt is right here — the token is already
+	// high-entropy, so there is nothing to brute force.
+	//
+	// The unique index is partial so a revoked token does not block reissuing.
+	TokenHash string `json:"-" gorm:"not null;uniqueIndex:uniq_refresh_tokens_token_hash,where:deleted_at IS NULL"`
 	// Indexed and NOT NULL: a token with no expiry never expires, and expiry
 	// sweeps scan this column.
 	ExpiresAt time.Time      `json:"expires_at" gorm:"not null;index"`

@@ -57,6 +57,22 @@ Protect a route with `srv.Authenticate()`, and gate admin-only routes with
 `srv.RequireAdmin()` after it. Handlers read the caller via `CurrentUserID`,
 `CurrentUserEmail`, and `CurrentUserRole` rather than raw context keys.
 
+### Refresh tokens
+
+Only a **SHA-256 hash** of each refresh token is stored, never the token — a
+database leak must not hand out working sessions. Plain SHA-256 rather than
+bcrypt is correct here: the token is already high-entropy, so there is nothing
+to brute force.
+
+Refresh **rotates**: the presented token is revoked as the new pair is issued,
+so any refresh token works exactly once. Replaying a rotated token is treated as
+theft — a legitimate client never does it — and **every session for that user is
+revoked**, forcing a fresh login.
+
+Login is deliberately uniform: a wrong password, an unknown email, and a
+deactivated account all return the same error, and an unknown email still pays
+for a bcrypt comparison so it cannot be identified with a stopwatch.
+
 ## DTOs
 
 `internal/dto` holds what crosses the wire, deliberately separate from the
@@ -72,10 +88,23 @@ responses, omitting relations that were not preloaded.
 
 ## API
 
+Interactive docs at **http://localhost:8080/swagger/index.html** while the server
+is running. They are disabled in release mode: a full description of every
+endpoint and payload is reconnaissance in production.
+
+The spec in [`docs/`](docs) is generated from annotations above the handlers.
+After changing a handler, run `make docs` and commit the result; `make docs-check`
+fails if it is stale.
+
 | Endpoint | Purpose |
 | --- | --- |
 | `GET /health` | Liveness. Never touches the database, so a database blip cannot restart-loop the process |
 | `GET /health/ready` | Readiness. Pings the database; 503 when it is unreachable |
+| `POST /api/v1/auth/register` | Create a customer account, returns a token pair |
+| `POST /api/v1/auth/login` | Exchange credentials for a token pair |
+| `POST /api/v1/auth/refresh` | Rotate a refresh token |
+| `POST /api/v1/auth/logout` | Revoke a refresh token |
+| `GET /api/v1/auth/me` | The authenticated user (requires an access token) |
 
 Every response uses one envelope:
 
