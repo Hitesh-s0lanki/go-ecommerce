@@ -2,7 +2,8 @@
 
 An e-commerce backend written in Go.
 
-> **Status:** early scaffold. The Go module is initialized, but no application code exists yet.
+> **Status:** early scaffold. Tooling and CI are set up; `cmd/api` is a placeholder
+> entrypoint that only logs a startup line.
 
 ## Requirements
 
@@ -20,6 +21,7 @@ go mod download
 ## Development
 
 ```bash
+go run ./cmd/api      # run the API server
 go build ./...        # build
 go test ./...         # run tests
 golangci-lint run     # lint (also reports formatting issues)

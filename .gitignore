@@ -8,6 +8,10 @@
 /build/
 /dist/
 
+# `go build ./...` drops binaries named after each main package in the
+# working directory. Ignore them by name as new commands are added.
+/api
+
 # Test and coverage output
 *.test
 *.out
