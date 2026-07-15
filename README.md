@@ -231,7 +231,28 @@ Disable entirely with `make unhooks`.
 `docker/docker-compose.yml` runs:
 
 - **Postgres 18.4** on `localhost:5432`
-- **LocalStack** (S3, SQS) on `localhost:4566`
+- **LocalStack** (S3, SQS) on `localhost:4566`. Its init script creates the
+  uploads bucket, so `UPLOAD_PROVIDER=s3` works on a fresh volume.
+- **CDN** (nginx) on `localhost:8081`, standing in for the CDN that would front
+  uploaded files in production
+
+### Uploaded files
+
+`UPLOAD_PROVIDER` decides where product images are stored: `local` writes to
+`UPLOAD_PATH`, `s3` writes to the LocalStack bucket. `UPLOAD_PUBLIC_BASE_URL`
+decides where clients fetch them from, and the two are independent.
+
+Left empty, the API serves its own files at `/uploads` — fine for development,
+but only with the local provider. Point it at the CDN instead:
+
+```sh
+UPLOAD_PUBLIC_BASE_URL=http://localhost:8081/uploads
+```
+
+and one URL serves either provider: nginx returns the file from disk if the
+local provider wrote it, and proxies the bucket if not. So switching
+`UPLOAD_PROVIDER` needs no other change, and the API stops serving bytes —
+which is what production looks like.
 
 Configuration comes from `.env` (copy from `.env.example`). The Makefile reads the
 same file, so `make migrate-*` targets the database you configured there. Real

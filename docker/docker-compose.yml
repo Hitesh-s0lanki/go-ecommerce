@@ -53,6 +53,32 @@ services:
       retries: 5
       start_period: 20s
 
+  # Stands in for the CDN that would front uploaded files in production, so a
+  # local run exercises the same shape: the API hands out URLs to something
+  # other than itself. Serves both upload providers from one URL — see
+  # nginx/nginx.conf. Only used when UPLOAD_PUBLIC_BASE_URL points at it.
+  cdn:
+    image: nginx:1.27-alpine
+    container_name: go_ecommerce_cdn
+    restart: unless-stopped
+    ports:
+      - "${CDN_PORT:-8081}:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/upload-headers.inc:/etc/nginx/conf.d/upload-headers.inc:ro
+      # Read-only: this serves the local provider's files, it never writes them.
+      # The API creates the directory; the mount would otherwise be a
+      # root-owned empty one.
+      - ../uploads:/var/www/uploads:ro
+    depends_on:
+      - localstack
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost/uploads/ || true"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
 volumes:
   postgres_data:
   localstack_data:
