@@ -57,9 +57,12 @@ func (u *User) FullName() string {
 type RefreshToken struct {
 	ID     uint `json:"id"      gorm:"primaryKey"`
 	UserID uint `json:"user_id" gorm:"not null;index"`
-	// Token is excluded from JSON: it is a credential.
-	Token     string `json:"-" gorm:"not null"`
-	ExpiresAt time.Time
+	// Token is excluded from JSON: it is a credential. Its unique index is
+	// partial so a revoked token does not block reissuing the same value.
+	Token string `json:"-" gorm:"not null;uniqueIndex:uniq_refresh_tokens_token,where:deleted_at IS NULL"`
+	// Indexed and NOT NULL: a token with no expiry never expires, and expiry
+	// sweeps scan this column.
+	ExpiresAt time.Time      `json:"expires_at" gorm:"not null;index"`
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`

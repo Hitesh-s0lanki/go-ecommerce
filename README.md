@@ -44,6 +44,25 @@ forever.
 `OrderItem` snapshots the price at purchase; `CartItem` deliberately does not, so
 carts always price from the current product.
 
+## Migrations
+
+Versioned SQL under [`db/migrations/`](db/migrations), applied with
+[golang-migrate](https://github.com/golang-migrate/migrate). The models never
+migrate themselves — `AutoMigrate` is used only to build throwaway schemas in
+tests, so the SQL files are the single source of truth for the real database.
+
+```bash
+make docker-up                       # Postgres must be running
+make migrate-up                      # apply
+make migrate-status                  # current version
+make migrate-down                    # roll back one
+make migrate-create name=add_widgets # scaffold a new pair
+```
+
+The SQL is kept equivalent to the models: applying the migrations and running
+`AutoMigrate` produce a byte-identical schema. If you change a model, change the
+migrations too — nothing enforces this automatically.
+
 ## Requirements
 
 - Go 1.26 or newer
