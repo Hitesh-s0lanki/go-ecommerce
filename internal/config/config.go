@@ -19,6 +19,7 @@ type Config struct {
 	JWT      JWTConfig
 	AWS      AWSConfig
 	Upload   UploadConfig
+	Events   EventsConfig
 }
 
 // ServerConfig configures the HTTP server.
@@ -77,6 +78,19 @@ type AWSConfig struct {
 	SecretAccessKey string
 	S3Bucket        string
 	S3Endpoint      string
+	// SQSEndpoint is separate from S3Endpoint. They are the same host under
+	// LocalStack, which is why the reference gets away with feeding the S3
+	// endpoint to its SQS client, but they are different services and in any
+	// real deployment different addresses.
+	SQSEndpoint string
+}
+
+// EventsConfig configures domain event publishing.
+type EventsConfig struct {
+	// Enabled false discards every event, so the API runs with no queue.
+	Enabled bool
+	// QueueName must already exist: see events.NewSQS.
+	QueueName string
 }
 
 // Upload provider names.
@@ -139,6 +153,11 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 
+	eventsEnabled, err := getEnvBool("EVENTS_ENABLED", true)
+	if err != nil {
+		return nil, err
+	}
+
 	cfg := &Config{
 		Server: ServerConfig{
 			Port:           getEnv("PORT", "8080"),
@@ -164,6 +183,7 @@ func Load() (*Config, error) {
 			SecretAccessKey: getEnv("AWS_SECRET_ACCESS_KEY", "test"),
 			S3Bucket:        getEnv("AWS_S3_BUCKET", "ecommerce-uploads"),
 			S3Endpoint:      getEnv("AWS_S3_ENDPOINT", "http://localhost:4566"),
+			SQSEndpoint:     getEnv("AWS_SQS_ENDPOINT", "http://localhost:4566"),
 		},
 		Upload: UploadConfig{
 			Provider:      getEnv("UPLOAD_PROVIDER", UploadProviderLocal),
@@ -171,6 +191,11 @@ func Load() (*Config, error) {
 			PublicBaseURL: strings.TrimSuffix(getEnv("UPLOAD_PUBLIC_BASE_URL", ""), "/"),
 			MaxFileSize:   maxUploadSize,
 		},
+	}
+
+	cfg.Events = EventsConfig{
+		Enabled:   eventsEnabled,
+		QueueName: getEnv("AWS_EVENT_QUEUE_NAME", "ecommerce-events"),
 	}
 
 	if err := cfg.validate(); err != nil {
@@ -198,6 +223,11 @@ func (c *Config) validate() error {
 
 	if c.Upload.MaxFileSize <= 0 {
 		return fmt.Errorf("MAX_UPLOAD_SIZE must be positive, got %d", c.Upload.MaxFileSize)
+	}
+
+	// A publisher with no queue to publish to would fail on every event.
+	if c.Events.Enabled && c.Events.QueueName == "" {
+		return errors.New("AWS_EVENT_QUEUE_NAME must be set when EVENTS_ENABLED is true")
 	}
 
 	if !validUploadProviders[c.Upload.Provider] {
@@ -261,6 +291,23 @@ func getEnvDuration(key string, fallback time.Duration) (time.Duration, error) {
 	}
 
 	return d, nil
+}
+
+// getEnvBool reads a boolean. An unparseable value is an error rather than a
+// silent false: "EVENTS_ENABLED=yes" meaning "off" is the kind of thing found
+// weeks later.
+func getEnvBool(key string, fallback bool) (bool, error) {
+	raw := os.Getenv(key)
+	if raw == "" {
+		return fallback, nil
+	}
+
+	v, err := strconv.ParseBool(raw)
+	if err != nil {
+		return false, fmt.Errorf("%s: invalid boolean %q: %w", key, raw, err)
+	}
+
+	return v, nil
 }
 
 func getEnvInt64(key string, fallback int64) (int64, error) {

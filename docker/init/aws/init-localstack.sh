@@ -30,3 +30,15 @@ awslocal s3api put-bucket-policy --bucket "$BUCKET" --policy "{
 }"
 
 echo "bucket $BUCKET created"
+
+# The events queue. The publisher is configured not to create it: a queue
+# conjured up by a typo looks like a working publish, and the consumer waits
+# forever on the queue nobody is writing to.
+QUEUE="${AWS_EVENT_QUEUE_NAME:-ecommerce-events}"
+
+if awslocal sqs get-queue-url --queue-name "$QUEUE" >/dev/null 2>&1; then
+  echo "queue $QUEUE already exists"
+else
+  awslocal sqs create-queue --queue-name "$QUEUE" >/dev/null
+  echo "queue $QUEUE created"
+fi
