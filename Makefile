@@ -50,6 +50,11 @@ dev: run
 test:
 	go test -race ./...
 
+## test-integration: Run tests against the database from .env (needs make docker-up).
+test-integration:
+	TEST_DATABASE_DSN="host=$(DB_HOST) user=$(DB_USER) password=$(DB_PASSWORD) dbname=$(DB_NAME) port=$(DB_PORT) sslmode=$(DB_SSLMODE) TimeZone=UTC" \
+		go test -race -count=1 ./...
+
 ## cover: Run tests and open an HTML coverage report.
 cover:
 	go test -race -coverprofile=coverage.out ./...
@@ -117,6 +122,6 @@ docker-reset:
 clean:
 	rm -rf $(BIN_DIR) coverage.out
 
-.PHONY: help tools tidy build run dev test cover lint lint-fix fmt fmt-check vet ci \
+.PHONY: help tools tidy build run dev test test-integration cover lint lint-fix fmt fmt-check vet ci \
 	migrate-create migrate-up migrate-down migrate-status \
 	docker-up docker-down docker-logs docker-reset clean
