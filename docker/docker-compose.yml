@@ -27,7 +27,10 @@ services:
       start_period: 30s
 
   localstack:
-    image: localstack/localstack:2026.06.3
+    # Pinned to a community release. The previous 2026.06.3 pin is a licensed
+    # build: it demands a LOCALSTACK_AUTH_TOKEN and exits 55 without one, so
+    # the container only ever restart-looped.
+    image: localstack/localstack:4.0
     container_name: go_ecommerce_localstack
     restart: unless-stopped
     environment:
@@ -40,6 +43,9 @@ services:
     volumes:
       - localstack_data:/var/lib/localstack
       - /var/run/docker.sock:/var/run/docker.sock
+      # Runs once the gateway is up, to create the uploads bucket. Without it
+      # every upload fails with NoSuchBucket on a fresh volume.
+      - ./init/aws/init-localstack.sh:/etc/localstack/init/ready.d/init.sh:ro
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:4566/_localstack/health"]
       interval: 10s

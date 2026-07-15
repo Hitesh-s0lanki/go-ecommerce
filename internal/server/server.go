@@ -18,6 +18,7 @@ import (
 	"github.com/Hitesh-s0lanki/go-ecommerce/internal/auth"
 	"github.com/Hitesh-s0lanki/go-ecommerce/internal/config"
 	"github.com/Hitesh-s0lanki/go-ecommerce/internal/services"
+	"github.com/Hitesh-s0lanki/go-ecommerce/internal/storage"
 	"github.com/Hitesh-s0lanki/go-ecommerce/internal/utils"
 )
 
@@ -34,6 +35,7 @@ type Server struct {
 	users      *services.UserService
 	categories *services.CategoryService
 	products   *services.ProductService
+	uploads    *services.UploadService
 }
 
 // New builds a Server.
@@ -44,6 +46,22 @@ func New(cfg *config.Config, db *gorm.DB, logger *zerolog.Logger) (*Server, erro
 	tokens, err := auth.NewTokenManager(&cfg.JWT)
 	if err != nil {
 		return nil, fmt.Errorf("build token manager: %w", err)
+	}
+
+	// Built here so a misconfigured bucket or an unwritable upload directory
+	// stops the process, rather than surfacing as a 500 on the first upload.
+	provider, err := storage.New(context.Background(), &storage.Config{
+		Provider:      cfg.Upload.Provider,
+		Path:          cfg.Upload.Path,
+		PublicBaseURL: cfg.Upload.PublicBaseURL,
+		Region:        cfg.AWS.Region,
+		AccessKeyID:   cfg.AWS.AccessKeyID,
+		SecretKey:     cfg.AWS.SecretAccessKey,
+		Bucket:        cfg.AWS.S3Bucket,
+		Endpoint:      cfg.AWS.S3Endpoint,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("build upload provider: %w", err)
 	}
 
 	return &Server{
@@ -57,6 +75,7 @@ func New(cfg *config.Config, db *gorm.DB, logger *zerolog.Logger) (*Server, erro
 		users:      services.NewUserService(db),
 		categories: services.NewCategoryService(db),
 		products:   services.NewProductService(db),
+		uploads:    services.NewUploadService(provider, cfg.Upload.MaxFileSize),
 	}, nil
 }
 
@@ -153,8 +172,42 @@ func (s *Server) Routes() *gin.Engine {
 	adminProducts.POST("", s.createProduct)
 	adminProducts.PUT("/:id", s.updateProduct)
 	adminProducts.DELETE("/:id", s.deleteProduct)
+	adminProducts.POST("/:id/images", s.uploadProductImage)
+
+	s.mountUploads(router)
 
 	return router
+}
+
+// mountUploads serves locally stored uploads.
+//
+// Only when this process is the one holding them: with s3, or with a CDN in
+// front, the files are somewhere else entirely and this route would 404 for
+// every request.
+func (s *Server) mountUploads(router *gin.Engine) {
+	if !s.config.Upload.UsesLocalProvider() || s.config.Upload.PublicBaseURL != "" {
+		return
+	}
+
+	// false: no directory listing. The default would let anyone walk
+	// /uploads/products and enumerate every image in the shop.
+	fileServer := http.StripPrefix("/uploads",
+		http.FileServer(gin.Dir(s.config.Upload.Path, false)))
+
+	serve := func(c *gin.Context) {
+		// These bytes came from a user and are served from the API's own
+		// origin, so a file that a browser decides is HTML would run scripts
+		// with this site's cookies. The upload path only stores files it has
+		// identified as images, and these headers are what stops the browser
+		// from second-guessing that.
+		c.Header("X-Content-Type-Options", "nosniff")
+		c.Header("Content-Security-Policy", "default-src 'none'; sandbox")
+
+		fileServer.ServeHTTP(c.Writer, c.Request)
+	}
+
+	router.GET("/uploads/*filepath", serve)
+	router.HEAD("/uploads/*filepath", serve)
 }
 
 func (s *Server) health(c *gin.Context) {

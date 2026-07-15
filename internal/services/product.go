@@ -183,6 +183,56 @@ func (s *ProductService) Delete(ctx context.Context, id uint) error {
 	return nil
 }
 
+// AddImage records an already-stored image against a product.
+//
+// The first image a product gets is its primary one.
+func (s *ProductService) AddImage(ctx context.Context, productID uint, url, altText string) (*dto.ProductImageResponse, error) {
+	image := models.ProductImage{
+		ProductID: productID,
+		URL:       url,
+		AltText:   altText,
+	}
+
+	// One transaction, so the "is this the first image?" answer cannot go
+	// stale between the count and the insert.
+	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// The foreign key only proves the product row exists, and a
+		// soft-deleted product still has one — so it would happily accept an
+		// image for a product nobody can fetch. gorm's soft-delete filter is
+		// what makes this check mean "live product".
+		var product models.Product
+		if err := tx.First(&product, productID).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrProductNotFound
+			}
+
+			return fmt.Errorf("find product: %w", err)
+		}
+
+		var count int64
+		if err := tx.Model(&models.ProductImage{}).
+			Where("product_id = ?", productID).
+			Count(&count).Error; err != nil {
+			return fmt.Errorf("count images: %w", err)
+		}
+
+		image.IsPrimary = count == 0
+
+		if err := tx.Create(&image).Error; err != nil {
+			return fmt.Errorf("create image: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	resp := dto.NewProductImageResponse(&image)
+
+	return &resp, nil
+}
+
 // load reads a product and its relations whatever its active state, so an admin
 // write can answer with the row it just wrote — including a deactivated one,
 // which Get deliberately hides.

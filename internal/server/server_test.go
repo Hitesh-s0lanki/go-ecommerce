@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -15,7 +16,13 @@ import (
 
 func TestMain(m *testing.M) {
 	gin.SetMode(gin.TestMode)
-	m.Run()
+
+	code := m.Run()
+
+	// Not deferred: os.Exit skips defers.
+	_ = os.RemoveAll(testUploadsDir)
+
+	os.Exit(code)
 }
 
 // newServer builds a Server with no database. Handlers that do not touch the

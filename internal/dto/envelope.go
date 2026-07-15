@@ -51,6 +51,13 @@ type ProductListEnvelope struct {
 	Meta    PageMeta          `json:"meta"`
 }
 
+// ProductImageEnvelope is the response of the image upload endpoint.
+type ProductImageEnvelope struct {
+	Success bool                 `json:"success" example:"true"`
+	Message string               `json:"message" example:"image uploaded"`
+	Data    ProductImageResponse `json:"data"`
+}
+
 // MessageEnvelope is the response of endpoints returning no payload.
 type MessageEnvelope struct {
 	Success bool   `json:"success" example:"true"`

@@ -166,6 +166,99 @@ func (s *Server) deleteProduct(c *gin.Context) {
 	utils.SuccessResponse(c, "product deleted", nil)
 }
 
+// multipartOverhead is the slack allowed above the file limit for the
+// multipart envelope — boundaries, part headers, the alt_text field. Without it
+// a file of exactly MAX_UPLOAD_SIZE would be refused for the few hundred bytes
+// wrapped around it.
+const multipartOverhead = 1 << 20 // 1 MiB
+
+// uploadProductImage godoc
+//
+//	@Summary		Upload a product image
+//	@Description	Admin only. Multipart upload of an image file. The file is identified by its contents, not its name; jpeg, png, gif, and webp are accepted. The first image a product gets becomes its primary one.
+//	@Tags			products
+//	@Accept			mpfd
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id			path		int							true	"Product ID"
+//	@Param			image		formData	file						true	"Image file"
+//	@Param			alt_text	formData	string						false	"Alt text for screen readers"
+//	@Success		201			{object}	dto.ProductImageEnvelope	"Image stored"
+//	@Failure		400			{object}	dto.ErrorEnvelope			"No file, or it is not an image we accept"
+//	@Failure		401			{object}	dto.ErrorEnvelope			"Missing or invalid access token"
+//	@Failure		403			{object}	dto.ErrorEnvelope			"Not an administrator"
+//	@Failure		404			{object}	dto.ErrorEnvelope			"No such product"
+//	@Failure		413			{object}	dto.ErrorEnvelope			"File exceeds the upload limit"
+//	@Router			/products/{id}/images [post]
+func (s *Server) uploadProductImage(c *gin.Context) {
+	id, ok := idParam(c, "id")
+	if !ok {
+		return
+	}
+
+	// The real ceiling. Without it gin buffers the whole body before any size
+	// check runs, so the reference — which never enforces MAX_UPLOAD_SIZE at
+	// all — will happily read a multi-gigabyte request into memory and disk.
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, s.uploads.MaxBytes()+multipartOverhead)
+
+	file, err := c.FormFile("image")
+	if err != nil {
+		// MaxBytesReader tripped: the body is larger than we agreed to read.
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			utils.ErrorResponse(c, http.StatusRequestEntityTooLarge, "file too large", err)
+			return
+		}
+
+		utils.BadRequestResponse(c, "an image file is required in the 'image' field", err)
+
+		return
+	}
+
+	stored, err := s.uploads.UploadProductImage(c.Request.Context(), id, file)
+	if err != nil {
+		s.respondUploadError(c, err)
+		return
+	}
+
+	// The bytes are stored but nothing references them yet. If recording them
+	// fails, take them back out: an orphaned object is invisible, costs money
+	// forever, and nothing will ever come looking for it.
+	//
+	// The product's existence is checked here rather than before the upload —
+	// a prior check would still race with a delete, so the cleanup path has to
+	// exist either way, and one code path is better than two.
+	image, err := s.products.AddImage(c.Request.Context(), id, stored.URL, c.PostForm("alt_text"))
+	if err != nil {
+		if removeErr := s.uploads.Remove(c.Request.Context(), stored.Key); removeErr != nil {
+			// Logged, not returned: the caller's request failed for the
+			// original reason, and the leak is ours to notice.
+			s.logger.Error().Err(removeErr).Str("key", stored.Key).
+				Msg("failed to remove orphaned upload")
+		}
+
+		s.respondProductError(c, err, "failed to record image")
+
+		return
+	}
+
+	utils.CreatedResponse(c, "image uploaded", image)
+}
+
+// respondUploadError maps the upload service's deliberate errors to statuses.
+func (s *Server) respondUploadError(c *gin.Context, err error) {
+	switch {
+	case errors.Is(err, services.ErrFileTooLarge):
+		utils.ErrorResponse(c, http.StatusRequestEntityTooLarge, "file too large", err)
+	case errors.Is(err, services.ErrUnsupportedFileType):
+		utils.BadRequestResponse(c, "unsupported file type: jpeg, png, gif and webp are accepted", err)
+	case errors.Is(err, services.ErrEmptyFile):
+		utils.BadRequestResponse(c, "the uploaded file is empty", err)
+	default:
+		utils.InternalServerErrorResponse(c, "failed to store image", err)
+	}
+}
+
 // respondProductError keeps the status mapping in one place. Only the
 // deliberate service errors reach the caller; anything else is a 500 whose
 // detail stays in the log.
