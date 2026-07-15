@@ -23,8 +23,20 @@ MIGRATE_VERSION       := v4.19.1
 .DEFAULT_GOAL := help
 
 ## help: Show this help.
+# -h suppresses filenames: MAKEFILE_LIST also holds .env once it exists, and
+# grep prefixes every line when given more than one file.
 help:
-	@grep -E '^## ' $(MAKEFILE_LIST) | sed -e 's/## //' | awk -F': ' '{printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
+	@grep -hE '^## ' $(MAKEFILE_LIST) | sed -e 's/## //' | awk -F': ' '{printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
+
+## hooks: Enable the repo's git hooks (format+lint on commit, test on push).
+hooks:
+	git config core.hooksPath .githooks
+	@echo "git hooks enabled. Bypass a single run with --no-verify."
+
+## unhooks: Disable the repo's git hooks.
+unhooks:
+	git config --unset core.hooksPath
+	@echo "git hooks disabled."
 
 ## tools: Install pinned dev tooling (golangci-lint, migrate).
 tools:
@@ -68,9 +80,12 @@ lint:
 lint-fix:
 	golangci-lint run --fix
 
-## fmt: Apply the configured formatters in place.
+## fmt: Apply the configured formatters in place (gofmt + goimports).
 fmt:
 	golangci-lint fmt
+
+## format: Alias for fmt.
+format: fmt
 
 ## fmt-check: Fail if any file needs formatting.
 fmt-check:
@@ -122,6 +137,7 @@ docker-reset:
 clean:
 	rm -rf $(BIN_DIR) coverage.out
 
-.PHONY: help tools tidy build run dev test test-integration cover lint lint-fix fmt fmt-check vet ci \
+.PHONY: help hooks unhooks tools tidy build run dev test test-integration cover \
+	lint lint-fix fmt format fmt-check vet ci \
 	migrate-create migrate-up migrate-down migrate-status \
 	docker-up docker-down docker-logs docker-reset clean

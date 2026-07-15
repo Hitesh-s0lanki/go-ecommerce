@@ -21,10 +21,24 @@ cmd/api/            entrypoint: config, database, HTTP server, graceful shutdown
 internal/config/    environment loading and validation
 internal/database/  Postgres connection, pooling, health check
 internal/logger/    zerolog setup (console in dev, JSON in release)
+internal/dto/       request/response shapes and model mappers
 internal/models/    GORM models: users, products, carts, orders
 internal/server/    gin engine, middleware, health endpoints
 internal/utils/     HTTP response envelope
 ```
+
+## DTOs
+
+`internal/dto` holds what crosses the wire, deliberately separate from the
+models. Binding a request straight onto a model invites mass assignment — a
+caller setting `Role: "admin"` on registration — and serialising models back
+leaks columns as they are added. `UserResponse` has no password field by
+construction rather than by remembering a `json:"-"` tag.
+
+Requests are validated with gin's `binding` tags. Prices cross the wire as
+`price_cents`, matching the models; accepting decimals would reintroduce the
+float rounding the schema avoids. `NewXResponse` mappers convert models to
+responses, omitting relations that were not preloaded.
 
 ## API
 
@@ -103,9 +117,24 @@ git clone https://github.com/Hitesh-s0lanki/go-ecommerce.git
 cd go-ecommerce
 cp .env.example .env
 make tools       # install pinned dev tooling
+make hooks       # enable the git hooks
 make docker-up   # start Postgres and LocalStack
+make migrate-up  # create the schema
 make run
 ```
+
+### Git hooks
+
+`make hooks` points `core.hooksPath` at [`.githooks/`](.githooks). They are plain
+shell — nothing to install beyond the tools the Makefile already uses.
+
+| Hook | Runs | Why there |
+| --- | --- | --- |
+| `pre-commit` | format check + lint | Fast, and only when Go files are staged |
+| `pre-push` | `go vet` + `go test -race` | Too slow for every commit; still blocks broken code from the remote |
+
+Bypass a single run with `git commit --no-verify` or `git push --no-verify`.
+Disable entirely with `make unhooks`.
 
 ## Development
 

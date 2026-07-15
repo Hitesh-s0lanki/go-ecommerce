@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# Formatting and lint, on every commit. Kept fast; tests run on pre-push.
+#
+# Enable with: make hooks   (sets core.hooksPath to .githooks)
+# Skip once with: git commit --no-verify
+set -uo pipefail
+
+# Only look at staged Go files: a commit touching just the README should not
+# pay for a lint run.
+staged_go=$(git diff --cached --name-only --diff-filter=ACMR -- '*.go')
+if [ -z "$staged_go" ]; then
+	exit 0
+fi
+
+if ! command -v golangci-lint >/dev/null 2>&1; then
+	echo "pre-commit: golangci-lint not found. Install it with 'make tools' or 'brew install golangci-lint'." >&2
+	echo "pre-commit: skip this check with 'git commit --no-verify'." >&2
+	exit 1
+fi
+
+fail=0
+
+echo "pre-commit: checking formatting"
+if ! diff=$(golangci-lint fmt --diff 2>&1); then
+	if [ -n "$diff" ]; then
+		echo "$diff"
+	fi
+	echo >&2
+	echo "pre-commit: formatting issues. Fix with 'make fmt', then stage the changes." >&2
+	fail=1
+fi
+
+echo "pre-commit: linting"
+if ! golangci-lint run; then
+	echo >&2
+	echo "pre-commit: lint failed. Some issues are auto-fixable with 'make lint-fix'." >&2
+	fail=1
+fi
+
+if [ "$fail" -ne 0 ]; then
+	echo >&2
+	echo "pre-commit: commit aborted. Bypass with 'git commit --no-verify' if you must." >&2
+	exit 1
+fi
+
+echo "pre-commit: ok"
