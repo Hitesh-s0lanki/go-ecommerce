@@ -1,0 +1,37 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+/bin/
+/build/
+/dist/
+
+# Test and coverage output
+*.test
+*.out
+coverage.*
+
+# Go workspace files
+go.work
+go.work.sum
+
+# Dependency directory (only present with legacy vendoring)
+/vendor/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Editors
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
