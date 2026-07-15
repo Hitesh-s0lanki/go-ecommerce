@@ -10,7 +10,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
 
-	"github.com/Hitesh-s0lanki/go-ecommerce/internal/config"
 	"github.com/Hitesh-s0lanki/go-ecommerce/internal/server"
 )
 
@@ -25,17 +24,14 @@ func TestMain(m *testing.M) {
 func newServer(t *testing.T, origins []string) http.Handler {
 	t.Helper()
 
-	cfg := &config.Config{
-		Server: config.ServerConfig{
-			Port:           "8080",
-			GinMode:        gin.TestMode,
-			AllowedOrigins: origins,
-		},
-	}
-
 	log := zerolog.New(io.Discard)
 
-	return server.New(cfg, nil, &log).Routes()
+	srv, err := server.New(testConfig(origins), nil, &log)
+	if err != nil {
+		t.Fatalf("server.New: %v", err)
+	}
+
+	return srv.Routes()
 }
 
 func do(t *testing.T, h http.Handler, method, path string, headers map[string]string) *httptest.ResponseRecorder {

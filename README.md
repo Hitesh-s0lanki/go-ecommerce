@@ -18,6 +18,7 @@ An e-commerce backend written in Go.
 
 ```
 cmd/api/            entrypoint: config, database, HTTP server, graceful shutdown
+internal/auth/      password hashing and JWT issuing/verification
 internal/config/    environment loading and validation
 internal/database/  Postgres connection, pooling, health check
 internal/logger/    zerolog setup (console in dev, JSON in release)
@@ -26,6 +27,35 @@ internal/models/    GORM models: users, products, carts, orders
 internal/server/    gin engine, middleware, health endpoints
 internal/utils/     HTTP response envelope
 ```
+
+## Auth
+
+`internal/auth` holds the security primitives, kept apart from `internal/utils`
+(the HTTP envelope) so the code deciding who a caller is stays easy to find and
+review.
+
+**Access and refresh tokens are not interchangeable.** Both are signed with the
+same secret, so the signature alone proves only that a token is ours — not what
+it is for. Every token carries a `use` claim, and `ParseAccessToken` rejects a
+refresh token. Without this, a 72-hour refresh token authenticates anywhere a
+24-hour access token does.
+
+Other properties worth knowing:
+
+- The HS256 algorithm is **pinned** at parse time. A parser that trusts the
+  token's own header is the root of the classic JWT confusion attacks
+- `exp` is required — a token without one would be valid forever
+- Every token carries a `jti`, so one session can be revoked without dropping
+  all of a user's sessions
+- `JWT_SECRET` must be at least 32 bytes (HS256's key size), checked at
+  startup rather than at first use. Generate one with `openssl rand -hex 32`
+- Passwords longer than 72 bytes are **rejected, not truncated**: bcrypt only
+  ever reads the first 72, so a longer password would silently authenticate on
+  a prefix. bcrypt's cost is 12 rather than the library default of 10
+
+Protect a route with `srv.Authenticate()`, and gate admin-only routes with
+`srv.RequireAdmin()` after it. Handlers read the caller via `CurrentUserID`,
+`CurrentUserEmail`, and `CurrentUserRole` rather than raw context keys.
 
 ## DTOs
 

@@ -7,13 +7,11 @@ import (
 	"os"
 	"testing"
 
-	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	gormlogger "gorm.io/gorm/logger"
 
-	"github.com/Hitesh-s0lanki/go-ecommerce/internal/config"
 	"github.com/Hitesh-s0lanki/go-ecommerce/internal/server"
 )
 
@@ -34,13 +32,14 @@ func newServerWithDB(t *testing.T) (http.Handler, *gorm.DB) {
 		t.Fatalf("connect: %v", err)
 	}
 
-	cfg := &config.Config{
-		Server: config.ServerConfig{Port: "8080", GinMode: gin.TestMode, AllowedOrigins: []string{"*"}},
-	}
-
 	log := zerolog.New(io.Discard)
 
-	return server.New(cfg, db, &log).Routes(), db
+	srv, err := server.New(testConfig([]string{"*"}), db, &log)
+	if err != nil {
+		t.Fatalf("server.New: %v", err)
+	}
+
+	return srv.Routes(), db
 }
 
 func TestReadyWithDatabase(t *testing.T) {

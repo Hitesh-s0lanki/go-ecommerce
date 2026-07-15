@@ -53,11 +53,21 @@ func (c *DatabaseConfig) DSN() string {
 	)
 }
 
+// DefaultJWTSecret is the development placeholder. It is long enough to
+// satisfy HS256's key-length requirement so local runs work out of the box,
+// and is rejected outright in release mode.
+const DefaultJWTSecret = "change_me_in_production_do_not_use"
+
 // JWTConfig configures token signing and lifetimes.
 type JWTConfig struct {
 	Secret              string
 	ExpiresIn           time.Duration
 	RefreshTokenExpires time.Duration
+}
+
+// UsesDefaultSecret reports whether the JWT secret is still the placeholder.
+func (c *JWTConfig) UsesDefaultSecret() bool {
+	return c.Secret == DefaultJWTSecret
 }
 
 // AWSConfig configures the AWS (or LocalStack) endpoints.
@@ -121,7 +131,7 @@ func Load() (*Config, error) {
 			SSLMode:  getEnv("DB_SSLMODE", "disable"),
 		},
 		JWT: JWTConfig{
-			Secret:              getEnv("JWT_SECRET", "change_me_in_production"),
+			Secret:              getEnv("JWT_SECRET", DefaultJWTSecret),
 			ExpiresIn:           jwtExpiresIn,
 			RefreshTokenExpires: refreshExpires,
 		},
@@ -157,7 +167,7 @@ func (c *Config) validate() error {
 	}
 
 	// Catching this at startup beats discovering it in production.
-	if c.IsProduction() && c.JWT.Secret == "change_me_in_production" {
+	if c.IsProduction() && c.JWT.UsesDefaultSecret() {
 		return ErrInsecureJWTSecret
 	}
 
